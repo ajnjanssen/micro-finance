@@ -40,5 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# data
-/data
+# data - ignore actual data files but allow examples
+/data/*.json
+/data/realdata/
+# Allow example files
+!/data/*.example
+!/data/.gitkeep

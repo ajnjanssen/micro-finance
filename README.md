@@ -50,6 +50,20 @@ git clone https://github.com/ajnjanssen/micro-finance.git
 cd micro-finance
 ```
 
+2. Install dependencies (this will automatically create the data files):
+
+```bash
+npm install
+```
+
+**Note**: The `postinstall` script will automatically create empty data files from the `.example` templates in the `data/` directory. These files contain your personal financial information and are not tracked by Git.
+
+3. (Optional) Manually run setup if needed:
+
+```bash
+npm run setup
+```
+
 2. Install dependencies:
 
 ```bash

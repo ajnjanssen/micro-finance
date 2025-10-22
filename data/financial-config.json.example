@@ -1,0 +1,12 @@
+{
+  "version": "3.0",
+  "lastUpdated": "",
+  "startingBalance": {
+    "date": "",
+    "checking": 0,
+    "savings": 0
+  },
+  "incomeSources": [],
+  "recurringExpenses": [],
+  "oneTimeExpenses": []
+}
