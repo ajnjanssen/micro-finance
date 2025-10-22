@@ -44,6 +44,7 @@ export interface RecurringExpense {
   isEssential: boolean; // Can't be reduced (rent, insurance)
   isVariable: boolean; // Amount varies month-to-month (utilities)
   estimatedVariance?: number; // ±% for variable expenses
+  budgetType?: "needs" | "wants" | "savings"; // 50/30/20 classification
   notes?: string;
 }
 
@@ -199,9 +200,20 @@ export function occursInMonth(
   const start = new Date(item.startDate);
   const end = item.endDate ? new Date(item.endDate) : null;
 
-  // Check if target month is within date range
-  if (targetMonth < start) return false;
-  if (end && targetMonth > end) return false;
+  // Normalize dates to first day of month for comparison
+  const targetMonthStart = new Date(
+    targetMonth.getFullYear(),
+    targetMonth.getMonth(),
+    1
+  );
+  const startMonthStart = new Date(start.getFullYear(), start.getMonth(), 1);
+  const endMonthStart = end
+    ? new Date(end.getFullYear(), end.getMonth(), 1)
+    : null;
+
+  // Check if target month is within date range (comparing only year/month)
+  if (targetMonthStart < startMonthStart) return false;
+  if (endMonthStart && targetMonthStart > endMonthStart) return false;
 
   // For now, all active items occur every month
   // (can refine for weekly/quarterly later)

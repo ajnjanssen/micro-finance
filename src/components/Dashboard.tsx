@@ -42,6 +42,12 @@ export default function Dashboard({ currentBalance }: DashboardProps) {
       );
       const monthlyProjections = await response.json();
 
+      // Debug: Check November's income breakdown
+      const novProj = monthlyProjections.find((p: any) => p.month === '2025-11');
+      const decProj = monthlyProjections.find((p: any) => p.month === '2025-12');
+      console.log('[Dashboard] November incomeBreakdown:', novProj?.incomeBreakdown);
+      console.log('[Dashboard] December incomeBreakdown:', decProj?.incomeBreakdown);
+
       // Transform MonthlyProjection[] to BalanceProjection[]
       const balanceProjections: BalanceProjection[] = monthlyProjections.map(
         (p: any) => ({
@@ -107,7 +113,9 @@ export default function Dashboard({ currentBalance }: DashboardProps) {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+    // Parse YYYY-MM-DD format manually to avoid timezone issues
+    const [year, month] = dateString.split("-").map(Number);
+    const date = new Date(year, month - 1, 1); // month is 0-indexed in Date constructor
     return date.toLocaleDateString("nl-NL", {
       month: "short",
       year: "numeric",
@@ -303,10 +311,6 @@ export default function Dashboard({ currentBalance }: DashboardProps) {
                       ]}
                       height={300}
                       grid={{ vertical: true, horizontal: true }}
-                      tooltip={{
-                        valueFormatter: (value: number) =>
-                          formatCurrency(value),
-                      }}
                     />
                   </div>
                 </div>

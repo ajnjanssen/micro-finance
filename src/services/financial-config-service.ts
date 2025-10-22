@@ -291,4 +291,9 @@ export class FinancialConfigService {
       activeGoals: config.savingsGoals.filter((g) => g.isActive).length,
     };
   }
+
+  async resetToDefault(): Promise<void> {
+    const defaultConfig = this.getDefaultConfig();
+    await this.saveConfig(defaultConfig);
+  }
 }

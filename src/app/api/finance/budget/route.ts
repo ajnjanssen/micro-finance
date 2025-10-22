@@ -217,6 +217,21 @@ export async function GET(request: NextRequest) {
         (spentByCategory[budgetCategory] || 0) + Math.abs(t.amount);
     });
 
+    // Track configured expenses separately
+    const configuredByCategory: { [key: string]: number } = {};
+    configuredExpenses.forEach((expense: any) => {
+      if (expense.isActive) {
+        const budgetCategory = normalizeCategoryName(expense.category);
+        // Track configured amount for this category
+        configuredByCategory[budgetCategory] =
+          (configuredByCategory[budgetCategory] || 0) + expense.amount;
+        // Ensure category appears in spentByCategory (with 0 if no transactions)
+        if (!spentByCategory[budgetCategory]) {
+          spentByCategory[budgetCategory] = 0;
+        }
+      }
+    });
+
     // Calculate average spending from last 3 months for recommendations
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
@@ -377,10 +392,12 @@ export async function GET(request: NextRequest) {
       ([category, config]) => {
         const spent = spentByCategory[category] || 0;
         const avgSpent = avgByCategory[category] || 0;
+        const configured = configuredByCategory[category] || 0;
 
-        // Current budget is based on average spending, but use recommended amount as minimum
-        // This ensures we never have 0 budgeted (which causes NaN in percentage calculations)
-        let budgeted = Math.max(avgSpent, config.recommended);
+        // Priority: 1) Configured amount, 2) Average spending, 3) Recommended amount
+        // This ensures configured expenses show up even with no transactions
+        let budgeted =
+          configured > 0 ? configured : Math.max(avgSpent, config.recommended);
 
         return {
           category,

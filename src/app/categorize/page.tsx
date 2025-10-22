@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Transaction, Category } from "@/types/finance";
 
-export default function CategorizePage() {
+function CategorizePageContent() {
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
 
@@ -753,5 +753,13 @@ export default function CategorizePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CategorizePage() {
+  return (
+    <Suspense fallback={<div className="p-8">Loading...</div>}>
+      <CategorizePageContent />
+    </Suspense>
   );
 }

@@ -9,8 +9,6 @@ import type {
   Frequency,
 } from "@/types/financial-config";
 import Header from "@/ui/foundation/Header";
-import Card from "@/ui/foundation/Card";
-import Navigation from "@/components/Navigation";
 
 type SettingsView =
   | "configure-income"
@@ -26,9 +24,6 @@ export default function SettingsPage() {
   const [activeView, setActiveView] =
     useState<SettingsView>("configure-income");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<
-    "accounts" | "transactions" | "categories" | "logs"
-  >("accounts");
 
   // Old system data (financial-data.json)
   const [accounts, setAccounts] = useState<Account[]>([]);

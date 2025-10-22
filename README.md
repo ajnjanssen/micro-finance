@@ -1,19 +1,29 @@
 # Micro Finance
 
-A personal finance management application built with Next.js that helps you track transactions, manage budgets, predict expenses, and achieve savings goals.
+A personal finance management application built with Next.js that helps you **plan and project** your financial future based on your configured income and expenses.
+
+## Philosophy: Configuration Over Calculation
+
+This app uses a **planning-first approach**:
+
+- ✅ **You configure** your recurring income, expenses, and savings goals
+- ✅ **The app projects** your financial future based on your plans
+- ✅ **CSV imports** serve as reference data for categorization ideas, not as source of truth
+- ✅ **Manual balance entry** gives you control over your starting point
+
+This means you define what your rent, salary, insurance, etc. **should be**, rather than the app trying to calculate it from partial historical data.
 
 ## Features
 
-- 📊 **Dashboard Overview**: Real-time visualization of your financial health
-- 💰 **Account Management**: Track multiple bank accounts and balances
-- 📝 **Transaction Tracking**: Log and categorize income and expenses
-- 📈 **Expense Predictions**: AI-powered forecasting of future expenses
+- 📊 **Dashboard Overview**: Real-time visualization of your financial projections
+- 💰 **Account Management**: Set manual balances for bank accounts, investments, and crypto
+- 📝 **Configuration-Based Planning**: Define your recurring income and expenses
+- 📈 **Financial Projections**: Forecast your balance months ahead based on your plans
 - 🎯 **Budget Planner**: Set and monitor budget targets by category
 - 🏆 **Savings Goals**: Create and track progress toward financial goals
-- 📥 **CSV Import**: Bulk import transactions from bank exports
-- 🔄 **Recurring Transaction Detection**: Automatically identify recurring patterns
-- 🏷️ **Smart Categorization**: Intelligent auto-categorization with audit trails
-- ⚡ **Duplicate Detection**: Prevent duplicate transaction entries
+- 📥 **CSV Import**: Import transactions as reference data for category ideas
+- 🏷️ **Smart Categorization**: Get suggestions from imported transaction patterns
+- 🔄 **Recurring Pattern Setup**: Manually configure your recurring transactions
 
 ## Tech Stack
 
@@ -66,26 +76,44 @@ npm run dev
 
 ## Usage
 
-### First Time Setup
+### First Time Setup - Onboarding Wizard 🚀
 
-1. **Configure Categories**: Visit the Settings page to set up expense and income categories
-2. **Add Accounts**: Create your bank accounts with starting balances
-3. **Import Data**: Upload CSV files from your bank or manually add transactions
-4. **Set Budgets**: Define budget limits for each category
-5. **Create Savings Goals**: Set financial targets and track progress
+When you first open the app (or if you have no accounts configured), you'll be greeted by an **interactive onboarding wizard** that walks you through:
 
-### Importing Transactions
+1. **Welcome** - Introduction to the configuration-first philosophy
+2. **Add Accounts** - Set up your bank accounts with current balances
+3. **Configure Income** - Add your salary and other recurring income sources
+4. **Add Expenses** - Enter your rent, insurance, subscriptions, etc.
+5. **Complete** - Review your setup and start using the app!
 
-The app supports CSV imports from bank exports:
+The wizard ensures you have everything configured before you start planning.
+
+#### Manual Setup (Alternative)
+
+If you skip the wizard or want to add more later:
+
+1. **Set Starting Balances**: Define your current account balances as your baseline
+2. **Configure Income Sources**: Add your salary and other recurring income
+3. **Configure Recurring Expenses**: Manually enter your rent, insurance, subscriptions, etc.
+4. **Optional - Import CSV**: Upload bank CSV files for category inspiration (not required)
+5. **Set Budgets**: Define budget limits for each category
+6. **Create Savings Goals**: Set financial targets and track progress
+
+> **Tip**: You can reset and restart the onboarding wizard anytime from Settings → Activity Log → Reset Onboarding
+
+### Working with CSV Imports (Optional)
+
+CSV imports are **reference data only** - they help you identify categories and patterns, but **the configured amounts in your settings are what drive your projections**:
 
 1. Navigate to the Upload page
 2. Select your CSV file (must include: Date, Description, Amount)
-3. The system will automatically:
-   - Validate transactions
-   - Detect and categorize expenses/income
-   - Identify recurring patterns
-   - Check for duplicates
-   - Extract tags from descriptions
+3. Review the imported transactions for:
+   - Category ideas (e.g., "I should add 'Streaming Services' category")
+   - Recurring patterns (e.g., "Netflix charges €12.99 monthly")
+   - Common merchants and descriptions
+4. **Then manually configure** these as recurring expenses in Settings with the amounts **you plan to budget**
+
+**Important**: Imported transaction amounts are NOT used for balance calculations or projections. They're just reference data to help you set up your budget configuration.
 
 ### Data Management
 

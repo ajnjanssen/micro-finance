@@ -26,7 +26,6 @@ export default function Navigation({
     // { id: "savings", label: "Spaar Doelen", icon: "🎯" },
     // { id: "predictions", label: "Voorspellingen", icon: "🔮" },
     { id: "settings", label: "Instellingen", icon: "⚙️" },
-    { id: "upload", label: "Upload", icon: "📤" },
   ];
 
   const handleTabClick = (tab: Tab) => {

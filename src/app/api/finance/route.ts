@@ -27,6 +27,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(account);
     }
 
+    if (body.type === "reset-all") {
+      // Reset to completely empty state
+      await service.resetAllData();
+
+      // Also reset financial configuration
+      const { FinancialConfigService } = await import(
+        "@/services/financial-config-service"
+      );
+      const configService = FinancialConfigService.getInstance();
+      await configService.resetToDefault();
+
+      return NextResponse.json({ success: true, message: "All data cleared" });
+    }
+
     return NextResponse.json(
       { error: "Invalid request type" },
       { status: 400 }

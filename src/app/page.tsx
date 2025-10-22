@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+// import { useSearchParams } from "next/navigation";
 import { FinancialData } from "@/types/finance";
 import TransactionForm from "@/components/TransactionForm";
 import AccountOverview from "@/components/AccountOverview";
@@ -10,12 +10,14 @@ import TransactionList from "@/components/TransactionList";
 import Dashboard from "@/components/Dashboard";
 import ExpensePredictions from "@/components/ExpensePredictions";
 import BudgetPlanner from "@/components/BudgetPlanner";
+import Budget503020 from "@/components/Budget503020";
 import Navigation from "@/components/Navigation";
 import SavingsGoals from "@/components/SavingsGoals";
 import AHeaderText from "@/ui/foundation/text/a-header-text";
+import Onboarding from "@/components/Onboarding";
 
 export default function Home() {
-  const searchParams = useSearchParams();
+  // const searchParams = useSearchParams();
   const [financialData, setFinancialData] = useState<FinancialData | null>(
     null
   );
@@ -27,42 +29,53 @@ export default function Home() {
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const loadFinancialData = async () => {
     try {
-      const response = await fetch("/api/finance");
-      const data = await response.json();
-      setFinancialData(data);
+      const [financeResponse, categoriesResponse] = await Promise.all([
+        fetch("/api/finance"),
+        fetch("/api/settings/categories"),
+      ]);
 
-      // Calculate account balances from transactions UP TO TODAY (excluding future)
-      const balances: { [accountId: string]: number } = {};
-      data.accounts.forEach((account: { id: string }) => {
-        balances[account.id] = 0;
+      const data = await financeResponse.json();
+      const categories = await categoriesResponse.json();
+
+      // Merge categories into financial data
+      setFinancialData({
+        ...data,
+        categories: Array.isArray(categories)
+          ? categories
+          : data.categories || [],
       });
 
-      // Sum only PAST and CURRENT transactions (not future ones)
-      const today = new Date();
-      today.setHours(23, 59, 59, 999); // End of today
-
-      data.transactions.forEach(
-        (transaction: { accountId: string; amount: number; date: string }) => {
-          const transactionDate = new Date(transaction.date);
-          // Only count transactions up to today
-          if (
-            transactionDate <= today &&
-            balances[transaction.accountId] !== undefined
-          ) {
-            balances[transaction.accountId] += transaction.amount;
-          }
+      // Use manually set starting balances (NOT calculated from transactions)
+      const balances: { [accountId: string]: number } = {};
+      data.accounts.forEach(
+        (account: { id: string; startingBalance: number }) => {
+          balances[account.id] = account.startingBalance || 0;
         }
       );
+
       setAccountBalances(balances);
+
+      // Check if onboarding is needed
+      const onboardingComplete = localStorage.getItem("onboarding_completed");
+      if (!onboardingComplete && data.accounts.length === 0) {
+        setShowOnboarding(true);
+      }
     } catch (error) {
       console.error("Error loading financial data:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleOnboardingComplete = async () => {
+    setShowOnboarding(false);
+    await loadFinancialData();
+  };
+
   const handleAddTransaction = async (transaction: any) => {
     try {
       const response = await fetch("/api/finance", {
@@ -197,12 +210,17 @@ export default function Home() {
   }, [financialData?.lastUpdated]);
 
   // Handle tab query parameter
-  useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (tabParam) {
-      setActiveTab(tabParam);
-    }
-  }, [searchParams]);
+  // useEffect(() => {
+  //   const tabParam = searchParams.get("tab");
+  //   if (tabParam) {
+  //     setActiveTab(tabParam);
+  //   }
+  // }, [searchParams]);
+
+  // Show onboarding if needed
+  if (showOnboarding) {
+    return <Onboarding onComplete={handleOnboardingComplete} />;
+  }
 
   if (loading) {
     return (
@@ -262,9 +280,7 @@ export default function Home() {
         <Navigation
           activeTab={activeTab}
           onTabChange={(tabId) => {
-            if (tabId === "upload") {
-              window.location.href = "/upload";
-            } else if (tabId === "settings") {
+            if (tabId === "settings") {
               window.location.href = "/settings";
             } else if (tabId === "categories") {
               window.location.href = "/categories";
@@ -280,7 +296,7 @@ export default function Home() {
           <Dashboard currentBalance={totalBalance} />
         )}
 
-        {activeTab === "budget" && <BudgetPlanner />}
+        {activeTab === "budget" && <Budget503020 />}
 
         {activeTab === "savings" && <SavingsGoals />}
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, Fragment } from "react";
 import { Transaction, Category } from "@/types/finance";
 import Navigation from "@/components/Navigation";
+import { convertToMonthly } from "@/types/financial-config";
 
 interface CategorySpending {
   category: string;
@@ -15,9 +16,21 @@ interface CategorySpending {
   }[];
 }
 
+interface ConfiguredExpense {
+  name: string;
+  amount: number;
+  category: string;
+  dayOfMonth: number;
+  isActive: boolean;
+  frequency: "weekly" | "biweekly" | "monthly" | "quarterly" | "yearly";
+}
+
 export default function CategoriesPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [configuredExpenses, setConfiguredExpenses] = useState<
+    ConfiguredExpense[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [categorySpending, setCategorySpending] = useState<CategorySpending[]>(
     []
@@ -34,13 +47,15 @@ export default function CategoriesPage() {
 
   const loadData = async () => {
     try {
-      const [txRes, catRes] = await Promise.all([
+      const [txRes, catRes, configRes] = await Promise.all([
         fetch("/api/settings/transactions"),
         fetch("/api/settings/categories"),
+        fetch("/api/config"),
       ]);
 
       const txData = await txRes.json();
       const catData = await catRes.json();
+      const configData = await configRes.json();
 
       // The API returns transactions directly as an array, not wrapped in an object
       const transactions = Array.isArray(txData)
@@ -49,12 +64,14 @@ export default function CategoriesPage() {
       const categories = Array.isArray(catData)
         ? catData
         : catData.categories || [];
+      const expenses = configData.recurringExpenses || [];
 
       setTransactions(transactions);
       setCategories(categories);
+      setConfiguredExpenses(expenses);
 
       // Calculate spending by category
-      calculateCategorySpending(transactions);
+      calculateCategorySpending(transactions, expenses);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -62,7 +79,10 @@ export default function CategoriesPage() {
     }
   };
 
-  const calculateCategorySpending = (txs: Transaction[]) => {
+  const calculateCategorySpending = (
+    txs: Transaction[],
+    configuredExpenses: ConfiguredExpense[]
+  ) => {
     const spendingMap = new Map<
       string,
       {
@@ -71,6 +91,29 @@ export default function CategoriesPage() {
         months: Map<string, { amount: number; count: number }>;
       }
     >();
+
+    // First, add configured expenses as baseline (with count 0 to show they're configured)
+    configuredExpenses
+      .filter((exp) => exp.isActive)
+      .forEach((expense) => {
+        const category = expense.category || "uncategorized";
+        const monthlyAmount = convertToMonthly(
+          expense.amount,
+          expense.frequency
+        );
+
+        if (!spendingMap.has(category)) {
+          spendingMap.set(category, {
+            total: monthlyAmount, // Include configured amount in total
+            count: 0, // Count stays 0 to indicate no actual transactions
+            months: new Map(),
+          });
+        } else {
+          // Add to existing category
+          const existing = spendingMap.get(category)!;
+          existing.total += monthlyAmount;
+        }
+      });
 
     // Filter only expenses (negative amounts, or explicitly marked as expense)
     // Exclude income transactions (positive amount with type="income")
@@ -267,9 +310,7 @@ export default function CategoriesPage() {
             activeTab="categories"
             onTabChange={(tabId) => {
               if (tabId === "categories") return;
-              if (tabId === "upload") {
-                window.location.href = "/upload";
-              } else if (tabId === "settings") {
+              if (tabId === "settings") {
                 window.location.href = "/settings";
               } else {
                 window.location.href = `/?tab=${tabId}`;
@@ -374,186 +415,364 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        {/* Categories Table */}
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="card-title">Uitgaven per Categorie</h2>
-              <div className="flex gap-2">
-                <select
-                  className="select select-bordered select-sm"
-                  value={sortBy}
-                  onChange={(e) =>
-                    setSortBy(e.target.value as "total" | "count" | "name")
-                  }
-                >
-                  <option value="total">Sorteer op Bedrag</option>
-                  <option value="count">Sorteer op Aantal</option>
-                  <option value="name">Sorteer op Naam</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="table table-zebra w-full">
-                <thead>
-                  <tr>
-                    <th>Categorie</th>
-                    <th className="text-right">Totaal Bedrag</th>
-                    <th className="text-right">Aantal</th>
-                    <th className="text-right">Gemiddeld</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedCategories.map((cat) => {
-                    const isExpanded = expandedCategory === cat.category;
-                    const avgPerTransaction = cat.total / cat.count;
-
-                    return (
-                      <Fragment key={cat.category}>
-                        <tr
-                          className={`hover cursor-pointer ${
-                            cat.category === "uncategorized"
-                              ? "bg-warning/10 border-l-4 border-warning"
-                              : ""
-                          }`}
-                          onClick={() => toggleCategory(cat.category)}
-                        >
-                          <td>
-                            <div className="flex items-center gap-2">
-                              <svg
-                                className={`w-4 h-4 transition-transform ${
-                                  isExpanded ? "rotate-90" : ""
-                                }`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M9 5l7 7-7 7"
-                                />
-                              </svg>
-                              <span
-                                className={`badge badge-lg font-mono ${
-                                  cat.category === "uncategorized"
-                                    ? "badge-warning"
-                                    : ""
-                                }`}
-                              >
-                                {cat.category}
-                              </span>
-                              {cat.category === "uncategorized" && (
-                                <span className="text-xs text-warning">
-                                  ⚠️ Actie vereist
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="text-right font-bold text-error">
-                            {formatCurrency(cat.total)}
-                          </td>
-                          <td className="text-right">{cat.count}</td>
-                          <td className="text-right text-sm text-base-content/70">
-                            {formatCurrency(avgPerTransaction)}
-                          </td>
-                          <td className="text-right">
-                            <a
-                              href={`/categorize?category=${encodeURIComponent(
-                                cat.category
-                              )}`}
-                              className="btn btn-xs btn-ghost"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              Bekijk →
-                            </a>
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr key={`${cat.category}-details`}>
-                            <td colSpan={5}>
-                              <div className="p-4 bg-base-200 rounded-lg">
-                                <div className="flex justify-between items-center mb-3">
-                                  <h4 className="font-semibold">
-                                    Maandelijkse Verdeling
-                                  </h4>
-                                  {cat.category === "uncategorized" && (
-                                    <a
-                                      href={`/categorize?category=uncategorized`}
-                                      className="btn btn-sm btn-primary"
-                                    >
-                                      🏷️ Categoriseer Deze Transacties
-                                    </a>
-                                  )}
-                                </div>
-                                <div className="overflow-x-auto">
-                                  <table className="table table-sm w-full">
-                                    <thead>
-                                      <tr>
-                                        <th>Maand</th>
-                                        <th className="text-right">Bedrag</th>
-                                        <th className="text-right">Aantal</th>
-                                        <th className="text-right">
-                                          Gemiddeld
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {cat.monthlyBreakdown.map((month) => (
-                                        <tr key={month.month}>
-                                          <td>{formatMonth(month.month)}</td>
-                                          <td className="text-right font-mono text-error">
-                                            {formatCurrency(month.amount)}
-                                          </td>
-                                          <td className="text-right">
-                                            {month.count}
-                                          </td>
-                                          <td className="text-right text-sm text-base-content/70">
-                                            {formatCurrency(
-                                              month.amount / month.count
-                                            )}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                      <tr className="font-bold border-t-2">
-                                        <td>Totaal</td>
-                                        <td className="text-right text-error">
-                                          {formatCurrency(cat.total)}
-                                        </td>
-                                        <td className="text-right">
-                                          {cat.count}
-                                        </td>
-                                        <td className="text-right">
-                                          {formatCurrency(avgPerTransaction)}
-                                        </td>
-                                      </tr>
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {categorySpending.length === 0 && (
-              <div className="text-center py-8 text-base-content/50">
-                <p>Geen uitgaven gevonden</p>
-                <a href="/upload" className="btn btn-primary btn-sm mt-4">
-                  Upload Transacties
+        {/* Empty State - No Transactions Yet */}
+        {categorySpending.length === 0 && configuredExpenses.length === 0 && (
+          <div className="card bg-base-100 shadow-xl border-2 border-dashed border-primary/30">
+            <div className="card-body items-center text-center py-12">
+              <div className="text-6xl mb-4">📊</div>
+              <h2 className="card-title text-2xl mb-2">
+                Nog Geen Configuratie
+              </h2>
+              <p className="text-base-content/70 max-w-md mb-6">
+                Je hebt nog geen uitgaven geconfigureerd. Ga door de onboarding
+                om je vaste uitgaven in te stellen.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <a href="/" className="btn btn-primary">
+                  � Start Onboarding
                 </a>
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Info about configured categories */}
+        {categorySpending.length > 0 && configuredExpenses.length > 0 && (
+          <div className="alert bg-info/10 shadow-lg border-l-info border-l-4">
+            <div className="flex items-start gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="stroke-current shrink-0 h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div>
+                <h3 className="font-bold">📋 Geconfigureerde Uitgaven</h3>
+                <p className="text-sm mt-1">
+                  Je hebt{" "}
+                  <strong>
+                    {configuredExpenses.filter((e) => e.isActive).length}{" "}
+                    uitgaven
+                  </strong>{" "}
+                  geconfigureerd tijdens de onboarding. Deze categorieën worden
+                  hieronder weergegeven. Zodra je transacties toevoegt, zie je
+                  de daadwerkelijke uitgaven per categorie.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Categories Table */}
+        {categorySpending.length > 0 && (
+          <div className="card bg-base-100 shadow-xl">
+            <div className="card-body">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="card-title">Uitgaven per Categorie</h2>
+                <div className="flex gap-2">
+                  <select
+                    className="select select-bordered select-sm"
+                    value={sortBy}
+                    onChange={(e) =>
+                      setSortBy(e.target.value as "total" | "count" | "name")
+                    }
+                  >
+                    <option value="total">Sorteer op Bedrag</option>
+                    <option value="count">Sorteer op Aantal</option>
+                    <option value="name">Sorteer op Naam</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="table table-zebra w-full">
+                  <thead>
+                    <tr>
+                      <th>Categorie</th>
+                      <th className="text-right">Totaal Bedrag</th>
+                      <th className="text-right">Aantal</th>
+                      <th className="text-right">Gemiddeld</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedCategories.map((cat) => {
+                      const isExpanded = expandedCategory === cat.category;
+                      const avgPerTransaction =
+                        cat.count > 0 ? cat.total / cat.count : 0;
+                      const isConfiguredOnly = cat.count === 0;
+                      const configuredForCategory = configuredExpenses.filter(
+                        (e) => e.isActive && e.category === cat.category
+                      );
+                      const configuredAmount = configuredForCategory.reduce(
+                        (sum, e) => sum + e.amount,
+                        0
+                      );
+
+                      return (
+                        <Fragment key={cat.category}>
+                          <tr
+                            className={`hover cursor-pointer ${
+                              cat.category === "uncategorized"
+                                ? "bg-warning/10 border-l-4 border-warning"
+                                : isConfiguredOnly
+                                ? "bg-success/5 border-l-4 border-success"
+                                : ""
+                            }`}
+                            onClick={() => toggleCategory(cat.category)}
+                          >
+                            <td>
+                              <div className="flex items-center gap-2">
+                                <svg
+                                  className={`w-4 h-4 transition-transform ${
+                                    isExpanded ? "rotate-90" : ""
+                                  }`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 5l7 7-7 7"
+                                  />
+                                </svg>
+                                <span
+                                  className={`badge badge-lg font-mono ${
+                                    cat.category === "uncategorized"
+                                      ? "badge-warning"
+                                      : isConfiguredOnly
+                                      ? "badge-success"
+                                      : ""
+                                  }`}
+                                >
+                                  {cat.category}
+                                </span>
+                                {cat.category === "uncategorized" && (
+                                  <span className="text-xs text-warning">
+                                    ⚠️ Actie vereist
+                                  </span>
+                                )}
+                                {isConfiguredOnly && (
+                                  <span className="text-xs text-error flex items-center gap-1">
+                                    ⚙️ Geconfigureerd (
+                                    {formatCurrency(configuredAmount)}/maand)
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="text-right font-bold text-error">
+                              {isConfiguredOnly ? (
+                                <span className="text-error">
+                                  {formatCurrency(configuredAmount)}/maand
+                                </span>
+                              ) : (
+                                formatCurrency(cat.total)
+                              )}
+                            </td>
+                            <td className="text-right">
+                              {isConfiguredOnly ? (
+                                <span className="text-base-content/50">
+                                  {configuredForCategory.length} geconfigureerd
+                                </span>
+                              ) : (
+                                cat.count
+                              )}
+                            </td>
+                            <td className="text-right text-sm text-base-content/70">
+                              {isConfiguredOnly ? (
+                                <span className="text-base-content/50">-</span>
+                              ) : (
+                                formatCurrency(avgPerTransaction)
+                              )}
+                            </td>
+                            <td className="text-right">
+                              {isConfiguredOnly ? (
+                                <a
+                                  href="/settings?tab=configure"
+                                  className="btn btn-xs btn-ghost"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Aanpassen →
+                                </a>
+                              ) : (
+                                <a
+                                  href={`/categorize?category=${encodeURIComponent(
+                                    cat.category
+                                  )}`}
+                                  className="btn btn-xs btn-ghost"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Bekijk →
+                                </a>
+                              )}
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr key={`${cat.category}-details`}>
+                              <td colSpan={5}>
+                                <div className="p-4 bg-base-200 rounded-lg">
+                                  {isConfiguredOnly ? (
+                                    <>
+                                      <div className="flex justify-between items-center mb-3">
+                                        <h4 className="font-semibold">
+                                          📋 Geconfigureerde Uitgaven
+                                        </h4>
+                                        <a
+                                          href="/settings?tab=configure"
+                                          className="btn btn-sm btn-primary"
+                                        >
+                                          ⚙️ Aanpassen
+                                        </a>
+                                      </div>
+                                      <div className="overflow-x-auto">
+                                        <table className="table table-sm w-full">
+                                          <thead>
+                                            <tr>
+                                              <th>Naam</th>
+                                              <th className="text-right">
+                                                Bedrag
+                                              </th>
+                                              <th className="text-right">
+                                                Dag van de Maand
+                                              </th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {configuredForCategory.map(
+                                              (expense, idx) => (
+                                                <tr key={idx}>
+                                                  <td className="font-medium">
+                                                    {expense.name}
+                                                  </td>
+                                                  <td className="text-right font-mono text-error">
+                                                    {formatCurrency(
+                                                      expense.amount
+                                                    )}
+                                                  </td>
+                                                  <td className="text-right text-base-content/70">
+                                                    {expense.dayOfMonth}e
+                                                  </td>
+                                                </tr>
+                                              )
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                      <div className="mt-3 p-3 bg-info/10 rounded text-sm">
+                                        💡 Je geconfigureerde uitgaven worden
+                                        hier weergegeven. Zodra je transacties
+                                        toevoegt, zie je het daadwerkelijke
+                                        bedrag dat je uitgeeft vergeleken met je
+                                        configuratie.
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="flex justify-between items-center mb-3">
+                                        <h4 className="font-semibold">
+                                          Maandelijkse Verdeling
+                                        </h4>
+                                        {cat.category === "uncategorized" && (
+                                          <a
+                                            href={`/categorize?category=uncategorized`}
+                                            className="btn btn-sm btn-primary"
+                                          >
+                                            🏷️ Categoriseer Deze Transacties
+                                          </a>
+                                        )}
+                                      </div>
+                                      <div className="overflow-x-auto">
+                                        <table className="table table-sm w-full">
+                                          <thead>
+                                            <tr>
+                                              <th>Maand</th>
+                                              <th className="text-right">
+                                                Bedrag
+                                              </th>
+                                              <th className="text-right">
+                                                Aantal
+                                              </th>
+                                              <th className="text-right">
+                                                Gemiddeld
+                                              </th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {cat.monthlyBreakdown.map(
+                                              (month) => (
+                                                <tr key={month.month}>
+                                                  <td>
+                                                    {formatMonth(month.month)}
+                                                  </td>
+                                                  <td className="text-right font-mono text-error">
+                                                    {formatCurrency(
+                                                      month.amount
+                                                    )}
+                                                  </td>
+                                                  <td className="text-right">
+                                                    {month.count}
+                                                  </td>
+                                                  <td className="text-right text-sm text-base-content/70">
+                                                    {formatCurrency(
+                                                      month.amount / month.count
+                                                    )}
+                                                  </td>
+                                                </tr>
+                                              )
+                                            )}
+                                            <tr className="font-bold border-t-2">
+                                              <td>Totaal</td>
+                                              <td className="text-right text-error">
+                                                {formatCurrency(cat.total)}
+                                              </td>
+                                              <td className="text-right">
+                                                {cat.count}
+                                              </td>
+                                              <td className="text-right">
+                                                {formatCurrency(
+                                                  avgPerTransaction
+                                                )}
+                                              </td>
+                                            </tr>
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {categorySpending.length === 0 && (
+                <div className="text-center py-8 text-base-content/50">
+                  <p>Geen uitgaven gevonden</p>
+                  <a
+                    href="/settings?tab=configure"
+                    className="btn btn-primary btn-sm mt-4"
+                  >
+                    Bekijk Configuratie
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Auto-Categorization Preview Modal */}
         {showPreview && previewResults && (

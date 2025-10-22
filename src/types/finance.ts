@@ -2,8 +2,10 @@ export interface Account {
   id: string;
   name: string;
   type: "checking" | "savings" | "crypto" | "stocks" | "debt" | "other";
-  balance?: number; // Optional - will be calculated from transactions
+  startingBalance: number; // Manual balance at startDate - NOT calculated from transactions
+  startDate: string; // YYYY-MM-DD - when you started tracking this account
   description?: string;
+  // Balance is always: startingBalance (no transaction calculations)
 }
 
 export interface Transaction {

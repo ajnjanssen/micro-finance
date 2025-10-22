@@ -165,29 +165,17 @@ export class FinancialDataService {
 
   async getAccountBalance(accountId: string): Promise<number> {
     const data = await this.loadData();
-    const transactions = data.transactions.filter(
-      (t) => t.accountId === accountId
-    );
-    return transactions.reduce(
-      (balance, transaction) => balance + transaction.amount,
-      0
-    );
+    const account = data.accounts.find((a) => a.id === accountId);
+    return account?.startingBalance || 0;
   }
 
   async getAccountBalances(): Promise<{ [accountId: string]: number }> {
     const data = await this.loadData();
     const balances: { [accountId: string]: number } = {};
 
-    // Initialize all accounts with 0 balance
+    // Use manually set starting balances (NOT calculated from transactions)
     data.accounts.forEach((account) => {
-      balances[account.id] = 0;
-    });
-
-    // Calculate balances from transactions
-    data.transactions.forEach((transaction) => {
-      if (balances[transaction.accountId] !== undefined) {
-        balances[transaction.accountId] += transaction.amount;
-      }
+      balances[account.id] = account.startingBalance || 0;
     });
 
     return balances;
@@ -640,5 +628,16 @@ export class FinancialDataService {
     });
 
     return averages;
+  }
+
+  async resetAllData(): Promise<void> {
+    // Reset to completely empty state
+    this.data = {
+      accounts: [],
+      transactions: [],
+      categories: [],
+      lastUpdated: new Date().toISOString(),
+    };
+    await this.saveData();
   }
 }

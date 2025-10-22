@@ -35,8 +35,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Add unique ID to category
+    const categoryWithId = {
+      ...newCategory,
+      id:
+        newCategory.id ||
+        `cat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+
     financialData.categories = financialData.categories || [];
-    financialData.categories.push(newCategory);
+    financialData.categories.push(categoryWithId);
     financialData.lastUpdated = new Date().toISOString();
 
     await fs.writeFile(
@@ -45,7 +53,7 @@ export async function POST(request: NextRequest) {
       "utf-8"
     );
 
-    return NextResponse.json(newCategory);
+    return NextResponse.json(categoryWithId);
   } catch (error) {
     console.error("Error creating category:", error);
     return NextResponse.json(

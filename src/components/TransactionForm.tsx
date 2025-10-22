@@ -36,6 +36,39 @@ export default function TransactionForm({
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState("#3b82f6");
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+
+    try {
+      const response = await fetch("/api/settings/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCategoryName,
+          type: formData.type,
+          color: newCategoryColor,
+        }),
+      });
+
+      if (response.ok) {
+        const newCategory = await response.json();
+        // Set the newly created category as selected
+        setFormData({ ...formData, category: newCategory.id });
+        setIsCreatingCategory(false);
+        setNewCategoryName("");
+        setNewCategoryColor("#3b82f6");
+
+        // Force a page reload to get updated categories
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error("Error creating category:", error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,16 +182,20 @@ export default function TransactionForm({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="label-text">Categorie</label>
+        <div>
+          <label className="label-text">Categorie</label>
+          <div className="flex gap-2">
             <select
               value={formData.category}
-              onChange={(e) =>
-                setFormData({ ...formData, category: e.target.value })
-              }
+              onChange={(e) => {
+                if (e.target.value === "__new__") {
+                  setIsCreatingCategory(true);
+                } else {
+                  setFormData({ ...formData, category: e.target.value });
+                }
+              }}
               className="select select-bordered w-full"
-              required
+              required={!isCreatingCategory}
             >
               <option value="">Selecteer categorie</option>
               {filteredCategories.map((category) => (
@@ -166,8 +203,56 @@ export default function TransactionForm({
                   {category.name}
                 </option>
               ))}
+              <option value="__new__">+ Voeg nieuwe categorie toe</option>
             </select>
           </div>
+
+          {isCreatingCategory && (
+            <div className="mt-3 p-4 border border-base-300 rounded-lg bg-base-200">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="font-semibold text-sm">Nieuwe Categorie</h4>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreatingCategory(false);
+                    setNewCategoryName("");
+                  }}
+                  className="btn btn-xs btn-ghost"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="label-text text-xs">Naam</label>
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    className="input input-bordered input-sm w-full"
+                    placeholder="Bijv. Sparen, Vakantie..."
+                  />
+                </div>
+                <div>
+                  <label className="label-text text-xs">Kleur</label>
+                  <input
+                    type="color"
+                    value={newCategoryColor}
+                    onChange={(e) => setNewCategoryColor(e.target.value)}
+                    className="input input-bordered input-sm w-full h-10"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCreateCategory}
+                  className="btn btn-primary btn-sm w-full"
+                  disabled={!newCategoryName.trim()}
+                >
+                  Categorie Toevoegen
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div>

@@ -12,7 +12,8 @@ export default function AccountForm({ onSubmit, onCancel }: AccountFormProps) {
   const [formData, setFormData] = useState({
     name: "",
     type: "checking" as Account["type"],
-    balance: "",
+    startingBalance: "",
+    startDate: new Date().toISOString().split("T")[0], // Today's date
     description: "",
   });
 
@@ -26,7 +27,8 @@ export default function AccountForm({ onSubmit, onCancel }: AccountFormProps) {
       const account: Omit<Account, "id"> = {
         name: formData.name,
         type: formData.type,
-        balance: parseFloat(formData.balance) || 0,
+        startingBalance: parseFloat(formData.startingBalance) || 0,
+        startDate: formData.startDate,
         description: formData.description || undefined,
       };
 
@@ -36,7 +38,8 @@ export default function AccountForm({ onSubmit, onCancel }: AccountFormProps) {
       setFormData({
         name: "",
         type: "checking",
-        balance: "",
+        startingBalance: "",
+        startDate: new Date().toISOString().split("T")[0],
         description: "",
       });
     } catch (error) {
@@ -74,41 +77,60 @@ export default function AccountForm({ onSubmit, onCancel }: AccountFormProps) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="label-text">Type Rekening</label>
-            <select
-              value={formData.type}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  type: e.target.value as Account["type"],
-                })
-              }
-              className="input input-bordered w-full"
-              required
-            >
-              {accountTypes.map((type) => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label className="label-text">Type Rekening</label>
+          <select
+            value={formData.type}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                type: e.target.value as Account["type"],
+              })
+            }
+            className="input input-bordered w-full"
+            required
+          >
+            {accountTypes.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
+        <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label-text">Huidig Saldo (€)</label>
             <input
               type="number"
               step="0.01"
-              value={formData.balance}
+              value={formData.startingBalance}
               onChange={(e) =>
-                setFormData({ ...formData, balance: e.target.value })
+                setFormData({ ...formData, startingBalance: e.target.value })
               }
               className="input input-bordered w-full"
               placeholder="0.00"
               required
             />
+            <label className="label-text-alt text-info">
+              Dit is je handmatig ingestelde saldo
+            </label>
+          </div>
+
+          <div>
+            <label className="label-text">Start Datum</label>
+            <input
+              type="date"
+              value={formData.startDate}
+              onChange={(e) =>
+                setFormData({ ...formData, startDate: e.target.value })
+              }
+              className="input input-bordered w-full"
+              required
+            />
+            <label className="label-text-alt text-info">
+              Vanaf welke datum track je dit account?
+            </label>
           </div>
         </div>
 

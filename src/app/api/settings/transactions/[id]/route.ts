@@ -4,10 +4,11 @@ import path from "path";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const transactionId = params.id;
+    const { id } = await params;
+    const transactionId = id;
     const updatedTransaction = await request.json();
 
     const dataPath = path.join(process.cwd(), "data", "financial-data.json");
@@ -45,10 +46,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const transactionId = params.id;
+    const { id } = await params;
+    const transactionId = id;
 
     const dataPath = path.join(process.cwd(), "data", "financial-data.json");
     const data = await fs.readFile(dataPath, "utf-8");
