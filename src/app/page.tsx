@@ -59,9 +59,8 @@ export default function Home() {
 
       setAccountBalances(balances);
 
-      // Check if onboarding is needed
-      const onboardingComplete = localStorage.getItem("onboarding_completed");
-      if (!onboardingComplete && data.accounts.length === 0) {
+      // Check if onboarding is needed (show if no accounts exist)
+      if (data.accounts.length === 0) {
         setShowOnboarding(true);
       }
     } catch (error) {

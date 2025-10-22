@@ -64,8 +64,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         });
       }
 
-      // Mark onboarding as complete
-      localStorage.setItem("onboarding_completed", "true");
+      // Onboarding complete - accounts now exist so it won't show again
       onComplete();
     } catch (error) {
       console.error("Error saving onboarding data:", error);
