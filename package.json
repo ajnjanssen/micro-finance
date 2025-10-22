@@ -9,8 +9,8 @@
     "start": "next start",
     "lint": "biome check",
     "format": "biome format --write",
-    "setup": "node setup.js",
-    "postinstall": "node setup.js"
+    "setup": "node setup.cjs",
+    "postinstall": "node setup.cjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
