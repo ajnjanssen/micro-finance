@@ -1,0 +1,12 @@
+[
+  {
+    "id": "motorcycle-demo",
+    "name": "Nieuwe Motor",
+    "targetAmount": 5000,
+    "currentSaved": 120.95,
+    "monthlySavings": 367,
+    "priority": "high",
+    "createdAt": "2025-10-20T12:23:43.354Z",
+    "updatedAt": "2025-10-20T14:08:19.612Z"
+  }
+]

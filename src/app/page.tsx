@@ -1,103 +1,373 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { FinancialData } from "@/types/finance";
+import TransactionForm from "@/components/TransactionForm";
+import AccountOverview from "@/components/AccountOverview";
+import AccountForm from "@/components/AccountForm";
+import TransactionList from "@/components/TransactionList";
+import Dashboard from "@/components/Dashboard";
+import ExpensePredictions from "@/components/ExpensePredictions";
+import BudgetPlanner from "@/components/BudgetPlanner";
+import Navigation from "@/components/Navigation";
+import SavingsGoals from "@/components/SavingsGoals";
+import AHeaderText from "@/ui/foundation/text/a-header-text";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const searchParams = useSearchParams();
+  const [financialData, setFinancialData] = useState<FinancialData | null>(
+    null
+  );
+  const [accountBalances, setAccountBalances] = useState<{
+    [accountId: string]: number;
+  }>({});
+  const [activeTab, setActiveTab] = useState("dashboard");
+  const [showTransactionForm, setShowTransactionForm] = useState(false);
+  const [showAccountForm, setShowAccountForm] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const loadFinancialData = async () => {
+    try {
+      const response = await fetch("/api/finance");
+      const data = await response.json();
+      setFinancialData(data);
+
+      // Calculate account balances from transactions UP TO TODAY (excluding future)
+      const balances: { [accountId: string]: number } = {};
+      data.accounts.forEach((account: { id: string }) => {
+        balances[account.id] = 0;
+      });
+
+      // Sum only PAST and CURRENT transactions (not future ones)
+      const today = new Date();
+      today.setHours(23, 59, 59, 999); // End of today
+
+      data.transactions.forEach(
+        (transaction: { accountId: string; amount: number; date: string }) => {
+          const transactionDate = new Date(transaction.date);
+          // Only count transactions up to today
+          if (
+            transactionDate <= today &&
+            balances[transaction.accountId] !== undefined
+          ) {
+            balances[transaction.accountId] += transaction.amount;
+          }
+        }
+      );
+      setAccountBalances(balances);
+    } catch (error) {
+      console.error("Error loading financial data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleAddTransaction = async (transaction: any) => {
+    try {
+      const response = await fetch("/api/finance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "add-transaction",
+          transaction,
+        }),
+      });
+
+      if (response.ok) {
+        await loadFinancialData();
+        setShowTransactionForm(false);
+      } else {
+        console.error("Failed to add transaction");
+      }
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+    }
+  };
+
+  const handleAddAccount = async (account: any) => {
+    try {
+      const response = await fetch("/api/finance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "add-account",
+          account,
+        }),
+      });
+
+      if (response.ok) {
+        await loadFinancialData();
+        setShowAccountForm(false);
+      } else {
+        console.error("Failed to add account");
+      }
+    } catch (error) {
+      console.error("Error adding account:", error);
+    }
+  };
+
+  const handleEditTransaction = (transaction: any) => {
+    setEditingTransaction(transaction);
+    setShowTransactionForm(true);
+    setActiveTab("transactions");
+  };
+
+  const handleUpdateTransaction = async (transaction: any) => {
+    try {
+      const response = await fetch("/api/finance", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type: "update-transaction",
+          id: editingTransaction.id,
+          updates: transaction,
+        }),
+      });
+
+      if (response.ok) {
+        await loadFinancialData();
+        setShowTransactionForm(false);
+        setEditingTransaction(null);
+      } else {
+        console.error("Failed to update transaction");
+      }
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+    }
+  };
+
+  const handleDeleteTransaction = async (transactionId: string) => {
+    if (!confirm("Weet je zeker dat je deze transactie wilt verwijderen?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/finance?id=${transactionId}&type=transaction`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (response.ok) {
+        await loadFinancialData();
+      } else {
+        console.error("Failed to delete transaction");
+      }
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+    }
+  };
+
+  const handleTransactionSubmit = async (transaction: any) => {
+    if (editingTransaction) {
+      await handleUpdateTransaction(transaction);
+    } else {
+      await handleAddTransaction(transaction);
+    }
+  };
+
+  useEffect(() => {
+    loadFinancialData();
+
+    // Poll for file changes every 5 seconds (reduced frequency)
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch("/api/finance");
+        const data = await response.json();
+        const lastUpdated = data.lastUpdated;
+
+        if (financialData && lastUpdated !== financialData.lastUpdated) {
+          console.log("Financial data updated, reloading...");
+          await loadFinancialData();
+        }
+      } catch (error) {
+        // Ignore errors during polling
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [financialData?.lastUpdated]);
+
+  // Handle tab query parameter
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-base-100 p-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-gray-300 rounded w-1/4"></div>
+            <div className="h-64 bg-gray-300 rounded"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="h-48 bg-gray-300 rounded"></div>
+              <div className="h-48 bg-gray-300 rounded"></div>
+            </div>
+          </div>
         </div>
+      </div>
+    );
+  }
+
+  if (!financialData) {
+    return (
+      <div className="min-h-screen bg-base-100 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            Fout bij het laden van financiële data
+          </h1>
+          <button
+            onClick={loadFinancialData}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Probeer opnieuw
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const totalBalance = accountBalances["checking-1"] || 0;
+
+  return (
+    <div className="min-h-screen">
+      <div className="sticky top-0 z-10 bg-base-200">
+        <header className="shadow-sm ">
+          <div className="max-w-7xl mx-auto px-4 py-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold text-primary">
+                  Micro Finance
+                </h1>
+                <p className="text-base-content">
+                  Beheer je financiën eenvoudig
+                </p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <Navigation
+          activeTab={activeTab}
+          onTabChange={(tabId) => {
+            if (tabId === "upload") {
+              window.location.href = "/upload";
+            } else if (tabId === "settings") {
+              window.location.href = "/settings";
+            } else if (tabId === "categories") {
+              window.location.href = "/categories";
+            } else {
+              setActiveTab(tabId);
+            }
+          }}
+        />
+      </div>
+
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        {activeTab === "dashboard" && (
+          <Dashboard currentBalance={totalBalance} />
+        )}
+
+        {activeTab === "budget" && <BudgetPlanner />}
+
+        {activeTab === "savings" && <SavingsGoals />}
+
+        {activeTab === "accounts" && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              {/* <h2 className="text-2xl font-bold text-gray-900">Rekeningen</h2> */}
+              <AHeaderText>Rekeningen</AHeaderText>
+              <button
+                onClick={() => setShowAccountForm(!showAccountForm)}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:ring-2 focus:ring-green-500"
+              >
+                {showAccountForm ? "Annuleren" : "+ Nieuwe Rekening"}
+              </button>
+            </div>
+
+            {showAccountForm && (
+              <AccountForm
+                onSubmit={handleAddAccount}
+                onCancel={() => setShowAccountForm(false)}
+              />
+            )}
+
+            <AccountOverview
+              accounts={financialData.accounts}
+              totalBalance={totalBalance}
+              accountBalances={accountBalances}
+            />
+          </div>
+        )}
+
+        {activeTab === "transactions" && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              {/* <h2 className="text-2xl font-bold text-gray-900">Transacties</h2> */}
+              <AHeaderText>Transacties</AHeaderText>
+              <button
+                onClick={() => setShowTransactionForm(!showTransactionForm)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
+              >
+                {showTransactionForm ? "Annuleren" : "+ Nieuwe Transactie"}
+              </button>
+            </div>
+
+            {showTransactionForm && (
+              <TransactionForm
+                accounts={financialData.accounts}
+                categories={financialData.categories}
+                accountBalances={accountBalances}
+                onSubmit={handleTransactionSubmit}
+                onCancel={() => {
+                  setShowTransactionForm(false);
+                  setEditingTransaction(null);
+                }}
+                editTransaction={editingTransaction}
+              />
+            )}
+
+            <TransactionList
+              transactions={financialData.transactions}
+              accounts={financialData.accounts}
+              categories={financialData.categories}
+              onEdit={handleEditTransaction}
+              onDelete={handleDeleteTransaction}
+            />
+          </div>
+        )}
+
+        {activeTab === "predictions" && (
+          <div className="space-y-6">
+            <ExpensePredictions />
+          </div>
+        )}
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+      <div className="fixed bottom-6 right-6">
+        <button
+          onClick={() => {
+            setActiveTab("transactions");
+            setShowTransactionForm(true);
+          }}
+          className="w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 flex items-center justify-center text-2xl"
+          title="Snelle transactie toevoegen"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          +
+        </button>
+      </div>
     </div>
   );
 }
