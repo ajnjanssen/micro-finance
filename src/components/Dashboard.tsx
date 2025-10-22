@@ -43,10 +43,20 @@ export default function Dashboard({ currentBalance }: DashboardProps) {
       const monthlyProjections = await response.json();
 
       // Debug: Check November's income breakdown
-      const novProj = monthlyProjections.find((p: any) => p.month === '2025-11');
-      const decProj = monthlyProjections.find((p: any) => p.month === '2025-12');
-      console.log('[Dashboard] November incomeBreakdown:', novProj?.incomeBreakdown);
-      console.log('[Dashboard] December incomeBreakdown:', decProj?.incomeBreakdown);
+      const novProj = monthlyProjections.find(
+        (p: any) => p.month === "2025-11"
+      );
+      const decProj = monthlyProjections.find(
+        (p: any) => p.month === "2025-12"
+      );
+      console.log(
+        "[Dashboard] November incomeBreakdown:",
+        novProj?.incomeBreakdown
+      );
+      console.log(
+        "[Dashboard] December incomeBreakdown:",
+        decProj?.incomeBreakdown
+      );
 
       // Transform MonthlyProjection[] to BalanceProjection[]
       const balanceProjections: BalanceProjection[] = monthlyProjections.map(

@@ -56,18 +56,18 @@ export default function Budget503020() {
       const today = new Date();
       const currentMonth = today.getMonth();
       const currentYear = today.getFullYear();
-      
+
       const recurringIncome = (financialData.transactions || [])
         .filter((t: any) => {
           if (!t.isRecurring || t.type !== "income") return false;
-          
+
           // For yearly transactions, only include if it's the correct month
           if (t.recurringType === "yearly") {
             const txDate = new Date(t.date);
             const txMonth = txDate.getMonth();
             return txMonth === currentMonth;
           }
-          
+
           // For monthly/quarterly/etc, include them
           // (You may want to add more specific logic for quarterly later)
           return true;
