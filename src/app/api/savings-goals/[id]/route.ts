@@ -37,40 +37,65 @@ async function saveGoals(goalsData: SavingsGoalsData): Promise<void> {
   await fs.writeFile(GOALS_FILE, JSON.stringify(goalsData, null, 2));
 }
 
-export async function GET() {
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await context.params;
+    const updates = await request.json();
+
     const goalsData = await loadGoals();
-    return NextResponse.json(goalsData);
+    const goals = goalsData.goals;
+
+    const index = goals.findIndex((g) => g.id === id);
+    if (index === -1) {
+      return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+    }
+
+    goals[index] = {
+      ...goals[index],
+      ...updates,
+      id, // Ensure ID doesn't change
+      updatedAt: new Date().toISOString(),
+    };
+
+    await saveGoals({ goals, lastUpdated: new Date().toISOString() });
+    return NextResponse.json(goals[index]);
   } catch (error) {
-    console.error("Error loading savings goals:", error);
+    console.error("Error updating savings goal:", error);
     return NextResponse.json(
-      { error: "Failed to load savings goals" },
+      { error: "Failed to update savings goal" },
       { status: 500 }
     );
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const goal = await request.json();
+    const { id } = await context.params;
 
     const goalsData = await loadGoals();
     const goals = goalsData.goals;
 
-    const newGoal: SavingsGoal = {
-      ...goal,
-      id: Date.now().toString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    goals.push(newGoal);
+    const filteredGoals = goals.filter((g) => g.id !== id);
 
-    await saveGoals({ goals, lastUpdated: new Date().toISOString() });
-    return NextResponse.json(newGoal);
+    if (filteredGoals.length === goals.length) {
+      return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+    }
+
+    await saveGoals({
+      goals: filteredGoals,
+      lastUpdated: new Date().toISOString(),
+    });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error saving savings goal:", error);
+    console.error("Error deleting savings goal:", error);
     return NextResponse.json(
-      { error: "Failed to save savings goal" },
+      { error: "Failed to delete savings goal" },
       { status: 500 }
     );
   }

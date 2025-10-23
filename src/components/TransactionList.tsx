@@ -9,6 +9,7 @@ interface TransactionListProps {
   categories: Category[];
   onEdit?: (transaction: Transaction) => void;
   onDelete?: (transactionId: string) => void;
+  onComplete?: (transactionId: string) => void;
 }
 
 export default function TransactionList({
@@ -17,6 +18,7 @@ export default function TransactionList({
   categories,
   onEdit,
   onDelete,
+  onComplete,
 }: TransactionListProps) {
   const [filter, setFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -188,9 +190,26 @@ export default function TransactionList({
             </thead>
             <tbody>
               {sortedTransactions.map((transaction) => (
-                <tr key={transaction.id} className="hover">
+                <tr
+                  key={transaction.id}
+                  className={`hover ${
+                    transaction.completed ? "opacity-60" : ""
+                  }`}
+                >
                   <td className="text-base-content">
-                    {formatDate(transaction.date)}
+                    <div className="flex items-center gap-2">
+                      {transaction.completed && (
+                        <span className="text-success text-lg" title="Voltooid">
+                          ✓
+                        </span>
+                      )}
+                      <span>{formatDate(transaction.date)}</span>
+                    </div>
+                    {transaction.completed && transaction.completedDate && (
+                      <div className="text-xs text-success">
+                        Voltooid: {formatDate(transaction.completedDate)}
+                      </div>
+                    )}
                   </td>
                   <td>
                     <div className="flex items-center">
@@ -247,8 +266,17 @@ export default function TransactionList({
                     </span>
                   </td>
                   <td className="text-center">
-                    {(onEdit || onDelete) && (
+                    {(onEdit || onDelete || onComplete) && (
                       <div className="flex justify-center space-x-2">
+                        {onComplete && !transaction.completed && (
+                          <button
+                            onClick={() => onComplete(transaction.id)}
+                            className="btn btn-sm btn-success"
+                            title="Markeer als voltooid"
+                          >
+                            ✓
+                          </button>
+                        )}
                         {onEdit && (
                           <button
                             onClick={() => onEdit(transaction)}

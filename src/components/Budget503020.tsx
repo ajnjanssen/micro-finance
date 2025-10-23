@@ -31,174 +31,10 @@ export default function Budget503020() {
 
   const loadBudgetBreakdown = async () => {
     try {
-      // Load configured income, expenses, AND recurring transactions
-      const [incomeRes, expensesRes, transactionsRes] = await Promise.all([
-        fetch("/api/config/income"),
-        fetch("/api/config/expenses"),
-        fetch("/api/finance"),
-      ]);
-
-      const income = await incomeRes.json();
-      const expenses = await expensesRes.json();
-      const financialData = await transactionsRes.json();
-
-      // Get recurring transactions
-      const recurringTransactions = (financialData.transactions || []).filter(
-        (t: any) => t.isRecurring && t.type === "expense"
-      );
-
-      // Calculate total monthly income (configured + recurring)
-      const configuredIncome = income
-        .filter((s: any) => s.isActive)
-        .reduce((sum: number, s: any) => sum + s.amount, 0);
-
-      // Only include recurring income that occurs THIS month
-      const today = new Date();
-      const currentMonth = today.getMonth();
-      const currentYear = today.getFullYear();
-
-      const recurringIncome = (financialData.transactions || [])
-        .filter((t: any) => {
-          if (!t.isRecurring || t.type !== "income") return false;
-
-          // For yearly transactions, only include if it's the correct month
-          if (t.recurringType === "yearly") {
-            const txDate = new Date(t.date);
-            const txMonth = txDate.getMonth();
-            return txMonth === currentMonth;
-          }
-
-          // For monthly/quarterly/etc, include them
-          // (You may want to add more specific logic for quarterly later)
-          return true;
-        })
-        .reduce((sum: number, t: any) => sum + Math.abs(t.amount), 0);
-
-      const totalIncome = configuredIncome + recurringIncome;
-
-      // Calculate 50/30/20 targets
-      const needsTarget = totalIncome * 0.5;
-      const wantsTarget = totalIncome * 0.3;
-      const savingsTarget = totalIncome * 0.2;
-
-      // Categorize configured expenses
-      const needs = expenses.filter(
-        (e: any) => e.isActive && e.budgetType === "needs"
-      );
-      const wants = expenses.filter(
-        (e: any) => e.isActive && e.budgetType === "wants"
-      );
-      const savings = expenses.filter(
-        (e: any) => e.isActive && e.budgetType === "savings"
-      );
-
-      // For uncategorized configured expenses, use isEssential as fallback
-      const uncategorized = expenses.filter(
-        (e: any) => e.isActive && !e.budgetType
-      );
-      uncategorized.forEach((e: any) => {
-        if (e.isEssential) {
-          needs.push(e);
-        } else {
-          wants.push(e);
-        }
-      });
-
-      // Categorize recurring transactions
-      const recurringExpenses = (financialData.transactions || []).filter(
-        (t: any) => t.isRecurring && t.type === "expense"
-      );
-
-      // Get categories to check if transaction is savings-related
-      const categories = financialData.categories || [];
-
-      // Add recurring expenses to appropriate buckets
-      for (const transaction of recurringExpenses) {
-        const txAmount = Math.abs(transaction.amount);
-        const txItem = {
-          name: transaction.description,
-          amount: txAmount,
-          category: transaction.category || "Onbekend",
-        };
-
-        // Check category name to determine bucket
-        const category = categories.find(
-          (c: any) => c.id === transaction.category
-        );
-        const categoryName = category?.name?.toLowerCase() || "";
-
-        // Savings categories
-        if (
-          categoryName.includes("spar") ||
-          categoryName.includes("saving") ||
-          categoryName.includes("besparing")
-        ) {
-          savings.push(txItem);
-        }
-        // Lifestyle/Wants categories
-        else if (
-          categoryName.includes("boodschappen") ||
-          categoryName.includes("groceries") ||
-          categoryName.includes("food") ||
-          categoryName.includes("eten") ||
-          categoryName.includes("restaurant") ||
-          categoryName.includes("entertainment") ||
-          categoryName.includes("hobby") ||
-          categoryName.includes("sport") ||
-          categoryName.includes("vakantie") ||
-          categoryName.includes("holiday")
-        ) {
-          wants.push(txItem);
-        }
-        // Default to needs for essential expenses
-        else {
-          needs.push(txItem);
-        }
-      }
-
-      const needsTotal = needs.reduce(
-        (sum: number, e: any) => sum + e.amount,
-        0
-      );
-      const wantsTotal = wants.reduce(
-        (sum: number, e: any) => sum + e.amount,
-        0
-      );
-      const savingsTotal = savings.reduce(
-        (sum: number, e: any) => sum + e.amount,
-        0
-      );
-
-      setBreakdown({
-        needs: {
-          budgeted: needsTarget,
-          spent: needsTotal,
-          items: needs.map((e: any) => ({
-            name: e.name,
-            amount: e.amount,
-            category: e.category,
-          })),
-        },
-        wants: {
-          budgeted: wantsTarget,
-          spent: wantsTotal,
-          items: wants.map((e: any) => ({
-            name: e.name,
-            amount: e.amount,
-            category: e.category,
-          })),
-        },
-        savings: {
-          budgeted: savingsTarget,
-          spent: savingsTotal,
-          items: savings.map((e: any) => ({
-            name: e.name,
-            amount: e.amount,
-            category: e.category,
-          })),
-        },
-        totalIncome,
-      });
+      // All business logic now handled by the API/service layer
+      const response = await fetch("/api/finance/budget/breakdown");
+      const data = await response.json();
+      setBreakdown(data);
     } catch (error) {
       console.error("Error loading budget breakdown:", error);
     } finally {
@@ -575,7 +411,7 @@ export default function Budget503020() {
 
           <div className="space-y-4">
             {/* Visual Chart */}
-            <div className="w-full h-64 flex items-end gap-2">
+            <div className="w-full h-fit flex items-end gap-2">
               {[1, 3, 6, 12, 24, 36].map((months) => {
                 const totalSaved = breakdown.savings.spent * months;
                 const maxSaving = breakdown.savings.spent * 36;
@@ -584,7 +420,7 @@ export default function Budget503020() {
                 return (
                   <div
                     key={months}
-                    className="flex-1 flex flex-col items-center gap-2"
+                    className="flex-1 flex flex-col items-center gap-2 border border-success p-4"
                   >
                     <div className="text-xs font-semibold text-success">
                       {formatCurrency(totalSaved)}

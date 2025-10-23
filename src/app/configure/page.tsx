@@ -49,7 +49,7 @@ export default function ConfigurePage() {
     .reduce((sum, e) => sum + e.amount, 0);
 
   return (
-    <div className="min-h-screen bg-base-200 p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">💰 Financiële Configuratie</h1>
 

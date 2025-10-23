@@ -15,14 +15,34 @@ import type {
 import { convertToMonthly, occursInMonth } from "@/types/financial-config";
 import { FinancialConfigService } from "./financial-config-service";
 import { FinancialDataService } from "./financial-data";
+import { CategoryService } from "./category-service";
+import { promises as fs } from "fs";
+import path from "path";
 
 export class ProjectionEngine {
   private configService: FinancialConfigService;
   private dataService: FinancialDataService;
+  private categoryService: CategoryService;
+  private readonly GOALS_FILE = path.join(
+    process.cwd(),
+    "data",
+    "savings-goals.json"
+  );
 
   constructor() {
     this.configService = FinancialConfigService.getInstance();
     this.dataService = FinancialDataService.getInstance();
+    this.categoryService = CategoryService.getInstance();
+  }
+
+  private async loadSavingsGoals() {
+    try {
+      const data = await fs.readFile(this.GOALS_FILE, "utf-8");
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? { goals: parsed } : parsed;
+    } catch {
+      return { goals: [] };
+    }
   }
 
   /**
@@ -131,11 +151,35 @@ export class ProjectionEngine {
         }
       }
 
-      // Add recurring expense transactions
+      // Add active savings goals
+      const goalsData = await this.loadSavingsGoals();
+      const activeGoals = (goalsData.goals || []).filter(
+        (goal: any) => goal.monthlyContribution && goal.monthlyContribution > 0
+      );
+
+      for (const goal of activeGoals) {
+        expenseBreakdown.push({
+          name: `💰 ${goal.name}`,
+          amount: goal.monthlyContribution,
+        });
+        configuredExpenses += goal.monthlyContribution;
+      }
+
+      // Add recurring expense transactions (but skip savings-related ones since we handle those via goals)
       for (const transaction of recurringTransactions.filter(
         (t) => t.type === "expense"
       )) {
         if (this.transactionOccursInMonth(transaction, targetDate)) {
+          // Skip savings transactions - they're now handled by savings goals
+          if (
+            this.categoryService.isSavingsTransaction(transaction.description)
+          ) {
+            console.log(
+              `[ProjectionEngine] Skipping duplicate savings transaction: ${transaction.description}`
+            );
+            continue;
+          }
+
           const amount = Math.abs(
             this.getTransactionAmountForMonth(transaction)
           );
@@ -201,7 +245,9 @@ export class ProjectionEngine {
     const data = await this.dataService.loadData();
     const today = new Date();
 
-    console.log(`[getCurrentMonthSummary] Today: ${today.toISOString()}, Month: ${today.getMonth()}`);
+    console.log(
+      `[getCurrentMonthSummary] Today: ${today.toISOString()}, Month: ${today.getMonth()}`
+    );
 
     // Configured for this month
     const configuredIncome = config.incomeSources
@@ -248,7 +294,9 @@ export class ProjectionEngine {
     const totalConfiguredExpenses =
       configuredExpenses + recurringExpenses + oneTimeExpenses;
 
-    console.log(`[getCurrentMonthSummary] Total Income: ${totalConfiguredIncome} (configured: ${configuredIncome}, recurring: ${recurringIncome})`);
+    console.log(
+      `[getCurrentMonthSummary] Total Income: ${totalConfiguredIncome} (configured: ${configuredIncome}, recurring: ${recurringIncome})`
+    );
 
     return {
       configuredIncome: totalConfiguredIncome,
@@ -283,10 +331,14 @@ export class ProjectionEngine {
     const [txYearStr, txMonthStr] = txDateStr.split("-");
     const txYear = Number.parseInt(txYearStr);
     const txMonth = Number.parseInt(txMonthStr) - 1; // Convert to 0-indexed
-    
+
     // Debug log for yearly transactions
-    if (transaction.recurringType === 'yearly') {
-      console.log(`[transactionOccursInMonth] Checking ${transaction.description}: txDateStr=${txDateStr}, txMonth=${txMonth}, targetMonth=${targetDate.getMonth()}`);
+    if (transaction.recurringType === "yearly") {
+      console.log(
+        `[transactionOccursInMonth] Checking ${
+          transaction.description
+        }: txDateStr=${txDateStr}, txMonth=${txMonth}, targetMonth=${targetDate.getMonth()}`
+      );
     }
 
     // Check if transaction has ended

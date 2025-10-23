@@ -261,7 +261,7 @@ export default function CategoriesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-200">
+      <div className="min-h-screen">
         <div className="bg-base-100 border-b border-base-300 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto">
             <header className="px-4 py-6">
@@ -290,7 +290,7 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-base-200">
+    <div className="min-h-screen">
       {/* Header with Navigation */}
       <div className="bg-base-100 border-b border-base-300 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto">

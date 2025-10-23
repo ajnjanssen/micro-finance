@@ -24,6 +24,7 @@ interface CategoryDetail {
 
 export default function Dashboard({ currentBalance }: DashboardProps) {
   const [projections, setProjections] = useState<BalanceProjection[]>([]);
+  const [monthlyProjections, setMonthlyProjections] = useState<any[]>([]);
   const [monthlyOverview, setMonthlyOverview] =
     useState<MonthlyOverview | null>(null);
   const [categoryDetails, setCategoryDetails] = useState<{
@@ -32,6 +33,7 @@ export default function Dashboard({ currentBalance }: DashboardProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set()
   );
+  const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
   const [projectionMonths, setProjectionMonths] = useState(36);
   const [loading, setLoading] = useState(true);
 
@@ -68,6 +70,7 @@ export default function Dashboard({ currentBalance }: DashboardProps) {
       );
 
       setProjections(balanceProjections);
+      setMonthlyProjections(monthlyProjections);
     } catch (error) {
       console.error("Error loading projections:", error);
     }
@@ -168,6 +171,21 @@ export default function Dashboard({ currentBalance }: DashboardProps) {
 
   return (
     <div className="space-y-6">
+      {/* Current Balance - Most Prominent */}
+      <div className="card bg-gradient-to-br from-primary/10 to-secondary/10 border-2 border-primary/20">
+        <div className="text-center">
+          <h2 className="text-lg font-medium text-base-content/70 mb-2">
+            Huidig Totaal Vermogen
+          </h2>
+          <p className="text-5xl font-bold text-primary mb-1">
+            {formatCurrency(currentBalance)}
+          </p>
+          <p className="text-sm text-base-content/60">
+            Dit is het daadwerkelijke saldo van al je rekeningen
+          </p>
+        </div>
+      </div>
+
       {/* Current Month Overview */}
       {monthlyOverview && (
         <div className="card">
@@ -176,7 +194,7 @@ export default function Dashboard({ currentBalance }: DashboardProps) {
           </h2>
           {/* Show actual vs projected if data available */}
           {monthlyOverview.actualIncome !== undefined && (
-            <div className="mb-4 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+            <div className="mb-4 p-3 bg-base-200 border border-primary/20 rounded-lg">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <div className="text-primary font-medium mb-1">
@@ -270,13 +288,19 @@ export default function Dashboard({ currentBalance }: DashboardProps) {
               </p>
             </div>
           </div>
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-base-content">
-              Balans Projecties
-            </h2>
+          <div className="flex justify-between items-center mb-2">
+            <div>
+              <h2 className="text-xl font-semibold text-base-content">
+                Toekomstige Balans Projecties
+              </h2>
+              <p className="text-sm text-base-content/60">
+                Verwachte ontwikkeling van je vermogen op basis van terugkerende
+                transacties
+              </p>
+            </div>
             <div className="flex items-center space-x-2">
               <label className="text-sm text-base-content w-fit">
-                Projectie periode:
+                Periode:
               </label>
               <select
                 value={projectionMonths}

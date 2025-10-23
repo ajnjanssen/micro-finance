@@ -113,7 +113,7 @@ function SettingsPageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-200 p-6">
+      <div className="min-h-screen p-6">
         <div className="max-w-6xl mx-auto">
           <Header level={1}>Settings</Header>
           <div className="animate-pulse space-y-4">
@@ -126,7 +126,7 @@ function SettingsPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-base-200">
+    <div className="min-h-screen">
       {/* Header */}
       <header className="bg-base-100 shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4">

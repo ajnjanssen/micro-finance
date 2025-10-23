@@ -129,7 +129,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-200 p-6">
+      <div className="min-h-screen p-6">
         <div className="max-w-6xl mx-auto">
           <Header level={1}>Settings</Header>
           <div className="animate-pulse space-y-4">

@@ -35,7 +35,7 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-base-200">
+    <div className="min-h-screen">
       {/* Header */}
       <header className="bg-base-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">

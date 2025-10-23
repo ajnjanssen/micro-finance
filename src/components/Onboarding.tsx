@@ -87,7 +87,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="card bg-base-100 shadow-2xl w-full max-w-4xl">
           {/* Progress Bar */}
-          <div className="p-6 border-b border-base-300">
+          <div className="p-6 border-b bg-base-200 border-base-300">
             <ul className="steps steps-horizontal w-full">
               {steps.map((step) => (
                 <li

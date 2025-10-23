@@ -21,6 +21,8 @@ export interface Transaction {
   recurringType?: "monthly" | "yearly" | "weekly" | "daily";
   recurringEndDate?: string;
   tags?: string[];
+  completed?: boolean; // Whether the transaction has actually occurred
+  completedDate?: string; // When it was marked as completed
 }
 
 export interface Category {

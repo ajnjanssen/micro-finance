@@ -235,7 +235,7 @@ function CategorizePageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-base-200 p-6">
+      <div className="min-h-screen p-6">
         <div className="max-w-6xl mx-auto">
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-base-300 rounded w-1/3"></div>
@@ -301,7 +301,7 @@ function CategorizePageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-base-200 p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
