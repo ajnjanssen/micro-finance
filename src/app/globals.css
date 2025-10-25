@@ -11,22 +11,21 @@ body {
   font-family: poppins, sans-serif;
 }
 
-.line-chart-card {
-  @apply bg-base-200 p-4 rounded-lg !text-base-content border-l-10 border-primary/20;
-}
-
+/* Chart styling with DaisyUI colors */
 tspan {
   @apply fill-base-content;
 }
 
-line {
-  @apply !stroke-base-content/10;
+/* Grid lines */
+.MuiChartsAxis-line {
+  @apply stroke-base-content/10;
 }
 
-circle {
-  @apply !stroke-primary/20 fill-primary/70;
+.MuiChartsAxis-tick {
+  @apply stroke-base-content/10;
 }
 
-g path {
-  @apply !stroke-primary/10;
-}
+/* Chart grid */
+.MuiChartsGrid-line {
+  @apply stroke-base-content/5;
+} 

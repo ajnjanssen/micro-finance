@@ -69,17 +69,27 @@ export class BudgetService {
    * Calculate 50/30/20 budget targets
    *
    * @param totalIncome - Monthly income
+   * @param customPercentages - Optional custom percentages (defaults to 50/30/20)
    * @returns Budget targets for needs/wants/savings
    */
-  calculate503020Targets(totalIncome: number): {
+  calculate503020Targets(
+    totalIncome: number,
+    customPercentages?: { needs: number; wants: number; savings: number }
+  ): {
     needs: number;
     wants: number;
     savings: number;
   } {
+    const percentages = customPercentages || {
+      needs: BUDGET_PERCENTAGES.NEEDS,
+      wants: BUDGET_PERCENTAGES.WANTS,
+      savings: BUDGET_PERCENTAGES.SAVINGS,
+    };
+    
     return {
-      needs: totalIncome * BUDGET_PERCENTAGES.NEEDS,
-      wants: totalIncome * BUDGET_PERCENTAGES.WANTS,
-      savings: totalIncome * BUDGET_PERCENTAGES.SAVINGS,
+      needs: totalIncome * percentages.needs,
+      wants: totalIncome * percentages.wants,
+      savings: totalIncome * percentages.savings,
     };
   }
 
@@ -149,6 +159,7 @@ export class BudgetService {
    * @param transactions - All transactions
    * @param savingsGoals - Active savings goals
    * @param monthEndDate - End date of month (to check if expenses have started)
+   * @param customPercentages - Optional custom budget percentages
    * @returns Complete budget breakdown
    */
   calculateBudgetBreakdown(
@@ -156,9 +167,10 @@ export class BudgetService {
     configuredExpenses: RecurringExpense[],
     transactions: Transaction[],
     savingsGoals: any[], // TODO: Type this properly
-    monthEndDate: Date
+    monthEndDate: Date,
+    customPercentages?: { needs: number; wants: number; savings: number }
   ): BudgetBreakdown {
-    const targets = this.calculate503020Targets(totalIncome);
+    const targets = this.calculate503020Targets(totalIncome, customPercentages);
 
     const needs: Array<{ name: string; amount: number; category: string }> = [];
     const wants: Array<{ name: string; amount: number; category: string }> = [];

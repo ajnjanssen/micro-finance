@@ -22,6 +22,7 @@ export interface IncomeSource {
   endDate?: string; // Optional - for temporary income
   isActive: boolean;
   notes?: string;
+  accountId?: string; // Which account receives this income
   category:
     | "salary"
     | "freelance"
@@ -45,6 +46,7 @@ export interface RecurringExpense {
   isVariable: boolean; // Amount varies month-to-month (utilities)
   estimatedVariance?: number; // ±% for variable expenses
   budgetType?: "needs" | "wants" | "savings"; // 50/30/20 classification
+  accountId?: string; // Which account pays this expense
   notes?: string;
 }
 
@@ -101,6 +103,11 @@ export interface FinancialConfiguration {
     defaultCurrency: "EUR" | "USD" | "GBP";
     projectionMonths: number; // How many months to project forward
     conservativeMode: boolean; // Use pessimistic estimates
+    budgetPercentages?: {
+      needs: number; // Default: 0.5 (50%)
+      wants: number; // Default: 0.3 (30%)
+      savings: number; // Default: 0.2 (20%)
+    };
   };
 }
 
@@ -121,10 +128,12 @@ export interface MonthlyProjection {
   // Balance
   projectedBalance: number;
   actualBalance?: number; // If month is in past
+  accountBalances?: { [accountId: string]: number }; // Per-account balances
 
   // Breakdown
-  incomeBreakdown: { source: string; amount: number }[];
-  expenseBreakdown: { name: string; amount: number }[];
+  incomeBreakdown: { source: string; amount: number; accountId?: string }[];
+  expenseBreakdown: { name: string; amount: number; accountId?: string }[];
+  savingsBreakdown?: { name: string; amount: number; accountId?: string }[];
 
   // Confidence
   confidence: number; // 100 for configured items

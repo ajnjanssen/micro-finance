@@ -464,6 +464,7 @@ export function isDuplicate(
 
 /**
  * Enrich a transaction with categorization, recurring detection, and tags.
+ * Preserves manually set values (category, isRecurring, tags) if they exist.
  */
 export function enrichTransaction(
   transaction: Partial<Transaction>
@@ -471,13 +472,26 @@ export function enrichTransaction(
   const { description = "", amount = 0 } = transaction;
   const details = ""; // Can be extended if needed
 
-  const { category, reason } = categorizeTransaction(
-    description,
-    details,
-    amount
-  );
-  const recurring = detectRecurring(description, details, amount);
-  const tags = extractTags(description, details);
+  // Only auto-categorize if no category is set
+  const { category, reason } = transaction.category
+    ? { category: transaction.category, reason: "Manually set" }
+    : categorizeTransaction(description, details, amount);
+
+  // Only auto-detect recurring if not explicitly set
+  const recurring =
+    transaction.isRecurring !== undefined
+      ? {
+          isRecurring: transaction.isRecurring,
+          recurringType: transaction.recurringType,
+          reason: "Manually set",
+        }
+      : detectRecurring(description, details, amount);
+
+  // Only auto-extract tags if none are set
+  const tags =
+    transaction.tags && transaction.tags.length > 0
+      ? transaction.tags
+      : extractTags(description, details);
 
   return {
     ...transaction,

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import Navigation from "@/components/Navigation";
+import { ToastProvider } from "@/components/ui/Toast";
 
 // ignore error for css import
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -25,10 +26,12 @@ export default function RootLayout({
   return (
     <html lang="nl" data-theme="abyss">
       <body className={`${poppins.variable} antialiased bg-base-100`}>
-        <div className="sticky top-0 z-50 bg-base-100 shadow-sm">
-          <Navigation />
-        </div>
-        {children}
+        <ToastProvider>
+          <div className="sticky top-0 z-50 bg-base-100 shadow-sm">
+            <Navigation />
+          </div>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );

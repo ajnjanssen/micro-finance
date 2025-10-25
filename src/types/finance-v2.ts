@@ -42,6 +42,9 @@ export interface Transaction {
   recurringGroupId?: string; // Links related recurring transactions
   recurringConfidence?: number; // 0-100
 
+  // Savings goal tracking
+  savingsGoalId?: string; // Links transaction to a savings goal
+
   // Metadata
   accountId: string;
   tags: string[];

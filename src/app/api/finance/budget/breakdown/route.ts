@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const goalsPath = path.join(process.cwd(), "data", "savings-goals.json");
     const goalsData = JSON.parse(await fs.readFile(goalsPath, "utf-8"));
 
-    const configuredIncome = configData.income || [];
+    const configuredIncome = configData.incomeSources || configData.income || [];
     const configuredExpenses = configData.recurringExpenses || [];
     const savingsGoals = goalsData.goals || [];
 
@@ -67,13 +67,29 @@ export async function GET(request: NextRequest) {
 
     const totalIncome = configuredIncomeTotal + recurringIncome;
 
+    // Create a category ID to name map
+    const categoryMap = new Map<string, string>();
+    for (const cat of data.categories) {
+      categoryMap.set(cat.id, cat.name.toLowerCase());
+    }
+
+    // Resolve category IDs in transactions to category names for budget service
+    const transactionsWithCategoryNames = data.transactions.map(t => ({
+      ...t,
+      category: categoryMap.get(t.category) || t.category
+    }));
+
+    // Get custom budget percentages from config if set
+    const customPercentages = configData.settings?.budgetPercentages;
+
     // Calculate budget breakdown using BudgetService
     const breakdown = budgetService.calculateBudgetBreakdown(
       totalIncome,
       configuredExpenses,
-      data.transactions,
+      transactionsWithCategoryNames,
       savingsGoals,
-      monthEndDate
+      monthEndDate,
+      customPercentages
     );
 
     return NextResponse.json(breakdown);

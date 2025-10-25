@@ -4,12 +4,15 @@ import { useState, useEffect } from "react";
 import Budget503020 from "@/components/Budget503020";
 import BudgetPlanner from "@/components/BudgetPlanner";
 import { FinancialData } from "@/types/finance";
+import Link from "next/link";
+import ConfigurationSection from "@/app/settings/components/ConfigurationSection";
 
 export default function BudgetPage() {
   const [financialData, setFinancialData] = useState<FinancialData | null>(
     null
   );
   const [loading, setLoading] = useState(true);
+  const [showConfiguration, setShowConfiguration] = useState(false);
 
   useEffect(() => {
     loadFinancialData();
@@ -51,9 +54,25 @@ export default function BudgetPage() {
   return (
     <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <h1 className="text-3xl font-bold text-base-content mb-6">Budget</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold text-base-content">Budget</h1>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => setShowConfiguration(!showConfiguration)}
+          >
+            {showConfiguration ? "Verberg" : "⚙️ Configureer"} Budget
+          </button>
+        </div>
 
         <div className="space-y-6">
+          {showConfiguration && (
+            <div className="card bg-base-200 shadow-xl">
+              <div className="card-body">
+                <ConfigurationSection onUpdate={loadFinancialData} />
+              </div>
+            </div>
+          )}
+          
           <Budget503020 />
           <BudgetPlanner />
         </div>

@@ -12,7 +12,7 @@ export interface Transaction {
   id: string;
   description: string;
   amount: number;
-  type: "income" | "expense";
+  type: "income" | "expense" | "transfer";
   category: string;
   categoryReason?: string; // Audit trail: why was this category assigned?
   accountId: string;
@@ -23,12 +23,13 @@ export interface Transaction {
   tags?: string[];
   completed?: boolean; // Whether the transaction has actually occurred
   completedDate?: string; // When it was marked as completed
+  toAccountId?: string; // For transfers: destination account
 }
 
 export interface Category {
   id: string;
   name: string;
-  type: "income" | "expense";
+  type: "income" | "expense" | "transfer";
   color: string;
 }
 

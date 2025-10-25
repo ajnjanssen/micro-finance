@@ -61,6 +61,17 @@ export class ProjectionEngine {
       0
     );
 
+    // Initialize account balances
+    const accountBalances: { [accountId: string]: number } = {};
+    for (const account of data.accounts) {
+      accountBalances[account.id] = account.startingBalance || 0;
+    }
+    
+    // Track cumulative savings per goal for projection
+    const goalSavingsAccumulated: { [goalId: string]: number } = {};
+    // Track which goals have been spent in the projection (to avoid spending multiple times)
+    const goalSpentInProjection: { [goalId: string]: boolean } = {};
+
     let balance = currentBalance;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -105,18 +116,22 @@ export class ProjectionEngine {
       }
 
       // Calculate configured income for this month
-      const incomeBreakdown: { source: string; amount: number }[] = [];
+      const incomeBreakdown: { source: string; amount: number; accountId?: string }[] = [];
       let configuredIncome = 0;
 
       for (const source of config.incomeSources.filter((s) => s.isActive)) {
         if (occursInMonth(source, targetDate)) {
           const amount = convertToMonthly(source.amount, source.frequency);
-          incomeBreakdown.push({ source: source.name, amount });
+          incomeBreakdown.push({ 
+            source: source.name, 
+            amount,
+            accountId: source.accountId 
+          });
           configuredIncome += amount;
         }
       }
 
-      // Add recurring income transactions
+      // Add recurring income transactions (exclude transfers)
       for (const transaction of recurringTransactions.filter(
         (t) => t.type === "income"
       )) {
@@ -132,13 +147,17 @@ export class ProjectionEngine {
         }
         if (occurs) {
           const amount = this.getTransactionAmountForMonth(transaction);
-          incomeBreakdown.push({ source: transaction.description, amount });
+          incomeBreakdown.push({ 
+            source: transaction.description, 
+            amount,
+            accountId: transaction.accountId 
+          });
           configuredIncome += amount;
         }
       }
 
       // Calculate configured expenses for this month
-      const expenseBreakdown: { name: string; amount: number }[] = [];
+      const expenseBreakdown: { name: string; amount: number; accountId?: string }[] = [];
       let configuredExpenses = 0;
 
       for (const expense of config.recurringExpenses.filter(
@@ -146,26 +165,105 @@ export class ProjectionEngine {
       )) {
         if (occursInMonth(expense, targetDate)) {
           const amount = convertToMonthly(expense.amount, expense.frequency);
-          expenseBreakdown.push({ name: expense.name, amount });
+          expenseBreakdown.push({ 
+            name: expense.name, 
+            amount,
+            accountId: expense.accountId 
+          });
           configuredExpenses += amount;
         }
       }
 
-      // Add active savings goals
+      // Add active savings goals - these don't reduce total balance, just move money
+      const savingsBreakdown: { name: string; amount: number; accountId?: string; goalId?: string }[] = [];
       const goalsData = await this.loadSavingsGoals();
+      
+      if (i <= 15) {
+        console.log(`[ProjectionEngine] ${monthStr}: Total goals: ${goalsData.goals?.length || 0}`);
+      }
+      
       const activeGoals = (goalsData.goals || []).filter(
-        (goal: any) => goal.monthlyContribution && goal.monthlyContribution > 0
+        (goal: any) => {
+          // Must have monthly contribution
+          if (!goal.monthlyContribution || goal.monthlyContribution <= 0) {
+            if (i <= 15) console.log(`  Goal "${goal.name}": SKIP - no monthly contribution`);
+            return false;
+          }
+          
+          // Must not be spent yet
+          if (goal.spentDate) {
+            if (i <= 15) console.log(`  Goal "${goal.name}": SKIP - already spent`);
+            return false;
+          }
+          
+          // Initialize accumulated savings if not set
+          if (goalSavingsAccumulated[goal.id] === undefined) {
+            goalSavingsAccumulated[goal.id] = 0;
+          }
+          
+          // Stop saving if goal is reached (based on accumulated projections)
+          if (goalSavingsAccumulated[goal.id] >= goal.targetAmount) {
+            if (i <= 15) console.log(`  Goal "${goal.name}": SKIP - already reached (${goalSavingsAccumulated[goal.id]} >= ${goal.targetAmount})`);
+            return false;
+          }
+          
+          // Check if within active date range
+          if (goal.startDate) {
+            const startDate = new Date(goal.startDate);
+            if (targetDate < startDate) {
+              if (i <= 15) console.log(`  Goal "${goal.name}": SKIP - not started yet (${targetDate.toISOString().slice(0,10)} < ${goal.startDate})`);
+              return false; // Haven't started yet
+            }
+          }
+          
+          if (goal.endDate) {
+            const endDate = new Date(goal.endDate);
+            // Allow saving through the end date (inclusive), stop after
+            const endOfMonth = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
+            if (targetDate > endOfMonth) {
+              if (i <= 15) console.log(`  Goal "${goal.name}": SKIP - already ended (${targetDate.toISOString().slice(0,10)} > ${goal.endDate})`);
+              return false; // Already ended
+            }
+          }
+          
+          if (i <= 15) console.log(`  Goal "${goal.name}": ACTIVE ✓`);
+          return true;
+        }
       );
 
       for (const goal of activeGoals) {
-        expenseBreakdown.push({
-          name: `💰 ${goal.name}`,
+        savingsBreakdown.push({
+          name: goal.name,
           amount: goal.monthlyContribution,
+          accountId: goal.accountId,
+          goalId: goal.id,
         });
-        configuredExpenses += goal.monthlyContribution;
+        // Track accumulated savings for this goal
+        goalSavingsAccumulated[goal.id] = (goalSavingsAccumulated[goal.id] || 0) + goal.monthlyContribution;
+        // Note: We DON'T add this to configuredExpenses since it doesn't leave your total wealth
       }
 
-      // Add recurring expense transactions (but skip savings-related ones since we handle those via goals)
+      // Check if any goals were completed this month and should be spent
+      const completedGoalsThisMonth: any[] = [];
+      for (const goal of goalsData.goals || []) {
+        // Skip if already spent (in data or in this projection)
+        if (goal.spentDate || goalSpentInProjection[goal.id]) continue;
+        
+        if (goalSavingsAccumulated[goal.id] >= goal.targetAmount) {
+          // Goal just reached! Add it to completed list
+          const previousAccumulated = goalSavingsAccumulated[goal.id] - (goal.monthlyContribution || 0);
+          if (previousAccumulated < goal.targetAmount) {
+            // This is the month it was completed
+            console.log(`[ProjectionEngine] ${monthStr}: Goal "${goal.name}" will be completed!`);
+            console.log(`  Target: €${goal.targetAmount}, Accumulated: €${goalSavingsAccumulated[goal.id]}`);
+            completedGoalsThisMonth.push(goal);
+            // Mark as spent in this projection
+            goalSpentInProjection[goal.id] = true;
+          }
+        }
+      }
+
+      // Add RECURRING expenses for this month
       for (const transaction of recurringTransactions.filter(
         (t) => t.type === "expense"
       )) {
@@ -183,12 +281,36 @@ export class ProjectionEngine {
           const amount = Math.abs(
             this.getTransactionAmountForMonth(transaction)
           );
-          expenseBreakdown.push({ name: transaction.description, amount });
+          expenseBreakdown.push({ 
+            name: transaction.description, 
+            amount,
+            accountId: transaction.accountId 
+          });
           configuredExpenses += amount;
         }
       }
 
-      // Add one-time expenses for this month
+      // Add ONE-TIME expense transactions for this month
+      const oneTimeExpenses = data.transactions.filter(
+        (t) => t.type === "expense" && !t.isRecurring && !t.completed
+      );
+      for (const transaction of oneTimeExpenses) {
+        const txDate = new Date(transaction.date);
+        if (
+          txDate.getFullYear() === targetDate.getFullYear() &&
+          txDate.getMonth() === targetDate.getMonth()
+        ) {
+          const amount = Math.abs(transaction.amount);
+          expenseBreakdown.push({ 
+            name: transaction.description, 
+            amount,
+            accountId: transaction.accountId 
+          });
+          configuredExpenses += amount;
+        }
+      }
+
+      // Add one-time expenses from config for this month
       for (const expense of config.oneTimeExpenses.filter((e) => !e.isPaid)) {
         const expenseDate = new Date(expense.date);
         if (
@@ -203,6 +325,102 @@ export class ProjectionEngine {
       // Update balance based ONLY on configured amounts
       const netChange = configuredIncome - configuredExpenses;
       balance += netChange;
+
+      // Update per-account balances
+      const accountBalancesThisMonth = { ...accountBalances };
+      
+      // Default account IDs (first checking account for expenses, first account overall for income)
+      const defaultExpenseAccountId = data.accounts.find(a => a.type === 'checking')?.id || data.accounts[0]?.id;
+      const defaultIncomeAccountId = data.accounts.find(a => a.type === 'checking')?.id || data.accounts[0]?.id;
+      
+      // Apply income to accounts
+      for (const income of incomeBreakdown) {
+        const targetAccountId = income.accountId || defaultIncomeAccountId;
+        if (targetAccountId && accountBalancesThisMonth[targetAccountId] !== undefined) {
+          accountBalancesThisMonth[targetAccountId] += income.amount;
+        }
+      }
+      
+      // Apply expenses to accounts
+      for (const expense of expenseBreakdown) {
+        const targetAccountId = expense.accountId || defaultExpenseAccountId;
+        if (targetAccountId && accountBalancesThisMonth[targetAccountId] !== undefined) {
+          accountBalancesThisMonth[targetAccountId] -= expense.amount;
+        }
+      }
+
+      // Apply savings transfers (from checking to savings account)
+      if (savingsBreakdown.length > 0) {
+        const checkingAccount = data.accounts.find(a => a.type === 'checking');
+        const savingsAccount = data.accounts.find(a => a.type === 'savings');
+        
+        if (checkingAccount && savingsAccount) {
+          const totalSavings = savingsBreakdown.reduce((sum, s) => sum + s.amount, 0);
+          
+          if (i <= 15) {
+            console.log(`[ProjectionEngine] ${monthStr}: Applying savings transfers`);
+            console.log(`  Savings account before: €${accountBalancesThisMonth[savingsAccount.id].toFixed(2)}`);
+          }
+          
+          // Deduct from checking
+          accountBalancesThisMonth[checkingAccount.id] -= totalSavings;
+          // Add to savings
+          accountBalancesThisMonth[savingsAccount.id] += totalSavings;
+          
+          if (i <= 15) {
+            console.log(`  Transfer amount: €${totalSavings}`);
+            console.log(`  Savings account after: €${accountBalancesThisMonth[savingsAccount.id].toFixed(2)}`);
+          }
+        }
+      }
+
+      // Apply recurring transfer transactions (money moving between accounts)
+      // Skip transfers that are already handled by savings goals
+      for (const transaction of recurringTransactions.filter(
+        (t) => t.type === "transfer" && !(t as any).savingsGoalId
+      )) {
+        if (this.transactionOccursInMonth(transaction, targetDate)) {
+          const fromAccountId = transaction.accountId;
+          const toAccountId = (transaction as any).toAccountId;
+          
+          if (fromAccountId && toAccountId && 
+              accountBalancesThisMonth[fromAccountId] !== undefined &&
+              accountBalancesThisMonth[toAccountId] !== undefined) {
+            // Deduct from source account
+            accountBalancesThisMonth[fromAccountId] -= transaction.amount;
+            // Add to destination account
+            accountBalancesThisMonth[toAccountId] += transaction.amount;
+          }
+        }
+      }
+
+      // Spend completed savings goals this month (deduct from savings account)
+      for (const completedGoal of completedGoalsThisMonth) {
+        const savingsAccount = data.accounts.find(a => a.type === 'savings');
+        if (savingsAccount && accountBalancesThisMonth[savingsAccount.id] !== undefined) {
+          console.log(`[ProjectionEngine] ${monthStr}: Goal "${completedGoal.name}" reached! Spending €${completedGoal.targetAmount}`);
+          console.log(`  Savings before: €${accountBalancesThisMonth[savingsAccount.id].toFixed(2)}`);
+          
+          // Deduct the goal amount from savings (you bought the item!)
+          accountBalancesThisMonth[savingsAccount.id] -= completedGoal.targetAmount;
+          // Also reduce total balance since money was spent
+          balance -= completedGoal.targetAmount;
+          
+          console.log(`  Savings after: €${accountBalancesThisMonth[savingsAccount.id].toFixed(2)}`);
+          
+          // Add to expense breakdown for visibility, but DON'T add to configuredExpenses
+          // because the money was already saved (didn't count as expense when transferred)
+          expenseBreakdown.push({
+            name: `🏍️ Gekocht: ${completedGoal.name}`,
+            amount: completedGoal.targetAmount,
+            accountId: savingsAccount.id,
+          });
+          // NOTE: We do NOT add to configuredExpenses - the money was already set aside
+        }
+      }
+
+      // Update running account balances for next month
+      Object.assign(accountBalances, accountBalancesThisMonth);
 
       // Log details for first few months
       if (i <= 2) {
@@ -223,8 +441,10 @@ export class ProjectionEngine {
         actualExpenses: 0, // Not tracking actual vs configured anymore
         projectedBalance: balance,
         actualBalance: i === 0 ? currentBalance : undefined, // Only show current balance for first month
+        accountBalances: accountBalancesThisMonth, // Add per-account balances
         incomeBreakdown,
         expenseBreakdown,
+        savingsBreakdown, // Add savings as separate category
         confidence: 100, // We know exactly what's configured
         incomeVariance: undefined, // No longer comparing to actuals
         expenseVariance: undefined, // No longer comparing to actuals

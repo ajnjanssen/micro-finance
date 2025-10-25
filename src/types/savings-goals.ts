@@ -12,6 +12,16 @@ export interface SavingsGoal {
   sourceUrl?: string; // Original product URL
   monthlyContribution?: number; // How much to save per month
   tags?: string[];
+  
+  // Active period for savings
+  startDate?: string; // When to start saving (YYYY-MM-DD)
+  endDate?: string; // When to stop saving (YYYY-MM-DD) - when goal is reached or abandoned
+  
+  // Goal completion tracking
+  completedDate?: string; // When the goal was reached (hit target amount)
+  spentDate?: string; // When the money was actually spent on the goal
+  spentTransactionId?: string; // Link to the transaction where money was spent
+  
   createdAt: string;
   updatedAt: string;
 }

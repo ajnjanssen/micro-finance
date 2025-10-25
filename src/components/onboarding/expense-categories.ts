@@ -1,0 +1,16 @@
+export const EXPENSE_CATEGORIES = [
+	{ value: "rent", label: "Huur", icon: "🏠" },
+	{ value: "utilities", label: "Energie & Water", icon: "⚡" },
+	{ value: "groceries", label: "Boodschappen", icon: "🛒" },
+	{ value: "health-insurance", label: "Zorgverzekering", icon: "🏥" },
+	{ value: "insurance", label: "Andere Verzekeringen", icon: "🛡️" },
+	{ value: "public-transport", label: "OV / Transport", icon: "🚆" },
+	{ value: "phone-internet", label: "Telefoon & Internet", icon: "📱" },
+	{ value: "subscriptions", label: "Abonnementen", icon: "📺" },
+	{ value: "gym", label: "Sport & Fitness", icon: "💪" },
+	{ value: "loan-payment", label: "Lening Aflossing", icon: "💳" },
+	{ value: "childcare", label: "Kinderopvang", icon: "👶" },
+	{ value: "education", label: "Onderwijs", icon: "📚" },
+	{ value: "savings-transfer", label: "Sparen", icon: "💰" },
+	{ value: "other", label: "Overig", icon: "📝" },
+] as const;

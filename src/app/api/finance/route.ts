@@ -18,8 +18,18 @@ export async function POST(request: NextRequest) {
     const service = FinancialDataService.getInstance();
 
     if (body.type === "add-transaction") {
-      const transaction = await service.addTransaction(body.transaction);
-      return NextResponse.json(transaction);
+      try {
+        console.log("Received transaction data:", JSON.stringify(body.transaction, null, 2));
+        const transaction = await service.addTransaction(body.transaction);
+        return NextResponse.json(transaction);
+      } catch (error) {
+        console.error("Error adding transaction:", error);
+        console.error("Transaction that failed:", JSON.stringify(body.transaction, null, 2));
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Failed to add transaction" },
+          { status: 400 }
+        );
+      }
     }
 
     if (body.type === "add-account") {

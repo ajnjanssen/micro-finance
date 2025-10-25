@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Onboarding from "@/components/Onboarding";
+import Onboarding from "@/components/onboarding";
 
 export default function Home() {
   const router = useRouter();

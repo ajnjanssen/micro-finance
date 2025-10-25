@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Dashboard from "@/components/Dashboard";
+import Dashboard from "@/components/dashboard";
 import { FinancialData } from "@/types/finance";
 
 export default function DashboardPage() {
@@ -79,7 +79,11 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <Dashboard currentBalance={totalBalance} />
+        <Dashboard 
+          currentBalance={totalBalance} 
+          accounts={financialData.accounts}
+          accountBalances={accountBalances}
+        />
       </div>
     </div>
   );
