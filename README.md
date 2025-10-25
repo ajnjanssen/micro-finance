@@ -1,230 +1,86 @@
-# Micro Finance
+# 💸 Micro Finance
 
-A personal finance management application built with Next.js that helps you **plan and project** your financial future based on your configured income and expenses.
+> *Because Excel spreadsheets are so 2005*
 
-## Philosophy: Configuration Over Calculation
+A personal finance app that helps you pretend you have your life together by projecting how rich (or poor) you'll be in 36 months. Spoiler: probably still broke, but at least you'll see it coming in a beautiful chart! 📉
 
-This app uses a **planning-first approach**:
+## 🤔 What is this?
 
-- ✅ **You configure** your recurring income, expenses, and savings goals
-- ✅ **The app projects** your financial future based on your plans
-- ✅ **CSV imports** serve as reference data for categorization ideas, not as source of truth
-- ✅ **Manual balance entry** gives you control over your starting point
+You know those finance apps that connect to your bank and judge your spending? This isn't that. This is the app for control freaks who:
 
-This means you define what your rent, salary, insurance, etc. **should be**, rather than the app trying to calculate it from partial historical data.
+- Want to **plan** their finances, not cry over past mistakes
+- Prefer telling the app "my rent is €727.33" instead of importing 500 transactions
+- Like to see pretty graphs going up (or down, no judgment)
+- Think CSV imports should be optional, like exercise
+- Actually enjoy manually entering their salary (said no one ever, but you do it anyway)
 
-## Features
+## ✨ What can it do?
 
-- 📊 **Dashboard Overview**: Real-time visualization of your financial projections
-- 💰 **Account Management**: Set manual balances for bank accounts, investments, and crypto
-- 📝 **Configuration-Based Planning**: Define your recurring income and expenses
-- 📈 **Financial Projections**: Forecast your balance months ahead based on your plans
-- 🎯 **Budget Planner**: Set and monitor budget targets by category
-- 🏆 **Savings Goals**: Create and track progress toward financial goals
-- 📥 **CSV Import**: Import transactions as reference data for category ideas
-- 🏷️ **Smart Categorization**: Get suggestions from imported transaction patterns
-- 🔄 **Recurring Pattern Setup**: Manually configure your recurring transactions
+- 📊 Show you fancy charts of your financial future (optimism sold separately)
+- 💰 Track multiple accounts (checking, savings, crypto dreams, etc.)
+- 🎯 Set savings goals (motorcycle: €6,400, dignity: priceless)
+- 📈 Project your balance 3 years ahead (brace yourself)
+- 💸 Custom budget percentages (because your 50/30/20 is more like 70/25/5)
+- � Transfer money between accounts without Excel formulas
+- 🧙 Smart onboarding wizard (asks better questions than your bank)
 
-## Tech Stack
-
-- **Framework**: [Next.js 15](https://nextjs.org/) with App Router
-- **Language**: TypeScript
-- **Styling**: TailwindCSS 4 + DaisyUI
-- **Charts**: Recharts & MUI X-Charts
-- **Data Format**: JSON-based local storage
-- **Code Quality**: Biome (linting & formatting)
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 20+ installed
-- npm or yarn package manager
-
-### Installation
-
-1. Clone the repository:
+## 🚀 Quick Start
 
 ```bash
 git clone https://github.com/ajnjanssen/micro-finance.git
 cd micro-finance
+npm install  # Makes magic happen
+npm run dev  # Opens http://localhost:3000
 ```
 
-2. Install dependencies (this will automatically create the data files):
+First time? The onboarding wizard will hold your hand through setup. It's like IKEA instructions, but actually helpful.
 
-```bash
-npm install
-```
+## 🛠️ Tech Stack
 
-**Note**: The `postinstall` script will automatically create empty data files from the `.example` templates in the `data/` directory. These files contain your personal financial information and are not tracked by Git.
+- **Next.js 15** - Because we like living on the edge
+- **TypeScript** - So we know what broke before running it
+- **TailwindCSS + DaisyUI** - Making ugly UIs pretty since 2023
+- **JSON files** - Your data, your computer, no cloud drama
 
-3. (Optional) Manually run setup if needed:
+## 📂 How it works
 
-```bash
-npm run setup
-```
+1. You tell it your salary: "I make €2,800/month"
+2. You tell it your expenses: "Rent is murdering me at €727.33"
+3. It does math (the app, not you)
+4. It shows you a graph
+5. You either feel good or reconsider your Netflix subscription
 
-2. Install dependencies:
+The app stores everything locally in JSON files because:
+- No subscription fees (ironic, right?)
+- Your financial shame stays on your computer
+- No cloud provider judging your spending on bubble tea
 
-```bash
-npm install
-```
+## 🎭 Philosophy
 
-3. Run the development server:
+**Configuration > Calculation**
 
-```bash
-npm run dev
-```
+This app doesn't try to be smart by analyzing your spending patterns. Instead, *you* tell it what your financial life *should* look like, and it projects the future based on that. Think of it as financial planning, not financial therapy.
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+## 🤓 For Developers
 
-## Available Scripts
+- Modular components (because spaghetti code is for dinner)
+- Custom hooks everywhere (we're fancy like that)
+- Type-safe (mostly... okay, we tried)
+- Projection engine that actually works (shocking, we know)
 
-| Script           | Description                             |
-| ---------------- | --------------------------------------- |
-| `npm run dev`    | Start development server with Turbopack |
-| `npm run build`  | Build production application            |
-| `npm start`      | Start production server                 |
-| `npm run lint`   | Run Biome linter                        |
-| `npm run format` | Format code with Biome                  |
+## 🐛 Known Issues
 
-## Usage
+- May cause anxiety when projections show you'll never retire
+- Charts occasionally tell the truth
+- Budget percentages can't fix poor life choices (we tried)
+- Won't help you explain your spending to your partner
 
-### First Time Setup - Onboarding Wizard 🚀
+## 📜 License
 
-When you first open the app (or if you have no accounts configured), you'll be greeted by an **interactive onboarding wizard** that walks you through:
-
-1. **Welcome** - Introduction to the configuration-first philosophy
-2. **Add Accounts** - Set up your bank accounts with current balances
-3. **Configure Income** - Add your salary and other recurring income sources
-4. **Add Expenses** - Enter your rent, insurance, subscriptions, etc.
-5. **Complete** - Review your setup and start using the app!
-
-The wizard ensures you have everything configured before you start planning.
-
-#### Manual Setup (Alternative)
-
-If you skip the wizard or want to add more later:
-
-1. **Set Starting Balances**: Define your current account balances as your baseline
-2. **Configure Income Sources**: Add your salary and other recurring income
-3. **Configure Recurring Expenses**: Manually enter your rent, insurance, subscriptions, etc.
-4. **Optional - Import CSV**: Upload bank CSV files for category inspiration (not required)
-5. **Set Budgets**: Define budget limits for each category
-6. **Create Savings Goals**: Set financial targets and track progress
-
-> **Tip**: You can reset and restart the onboarding wizard anytime from Settings → Activity Log → Reset Onboarding
-
-### Working with CSV Imports (Optional)
-
-CSV imports are **reference data only** - they help you identify categories and patterns, but **the configured amounts in your settings are what drive your projections**:
-
-1. Navigate to the Upload page
-2. Select your CSV file (must include: Date, Description, Amount)
-3. Review the imported transactions for:
-   - Category ideas (e.g., "I should add 'Streaming Services' category")
-   - Recurring patterns (e.g., "Netflix charges €12.99 monthly")
-   - Common merchants and descriptions
-4. **Then manually configure** these as recurring expenses in Settings with the amounts **you plan to budget**
-
-**Important**: Imported transaction amounts are NOT used for balance calculations or projections. They're just reference data to help you set up your budget configuration.
-
-### Data Management
-
-All financial data is stored locally in JSON files under the `data/` directory:
-
-- `financial-data.json` - Transactions and accounts
-- `financial-config.json` - Categories and settings
-- `savings-goals.json` - Savings goal definitions
-- `realdata/` - Uploaded CSV files
-
-## Project Structure
-
-```
-micro-finance/
-├── src/
-│   ├── app/              # Next.js app router pages
-│   │   ├── api/          # API routes
-│   │   └── [pages]/      # UI pages
-│   ├── components/       # React components
-│   ├── services/         # Business logic
-│   │   ├── financial-data.ts
-│   │   ├── transaction-validator.ts
-│   │   ├── expense-prediction.ts
-│   │   └── projection-engine-v3.ts
-│   ├── types/            # TypeScript definitions
-│   └── ui/               # UI foundation components
-├── scripts/              # Data management scripts
-├── data/                 # JSON data files
-└── public/               # Static assets
-```
-
-## Key Services
-
-### Transaction Validator
-
-The single source of truth for all financial logic:
-
-- Categorization rules (deterministic with audit trails)
-- Recurring pattern detection
-- Tag extraction
-- Data validation
-- Duplicate checking
-
-Located at: `src/services/transaction-validator.ts`
-
-### Projection Engine
-
-Sophisticated financial forecasting:
-
-- Monte Carlo simulations
-- Historical trend analysis
-- Seasonal adjustments
-- Recurring expense modeling
-- Budget-aware projections
-
-Located at: `src/services/projection-engine-v3.ts`
-
-## Customization
-
-### Adding New Categories
-
-Edit `src/services/transaction-validator.ts`:
-
-```typescript
-const CATEGORY_RULES: Record<string, CategoryRule> = {
-  healthcare: {
-    keywords: ["pharmacy", "doctor", "hospital"],
-    type: "expense",
-  },
-  // Add more categories...
-};
-```
-
-### Configuring Recurring Patterns
-
-Edit `src/services/transaction-validator.ts` to add custom recurring transaction patterns.
-
-## Scripts
-
-Additional utility scripts are available in the `scripts/` directory. See [scripts/README.md](scripts/README.md) for detailed documentation.
-
-## Data Privacy
-
-This application stores all data locally on your machine. No data is sent to external servers or cloud services, ensuring complete privacy of your financial information.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is private and for personal use.
-
-## Support
-
-For issues or questions, please open an issue on the GitHub repository.
+Private & personal use. Don't judge our code, we won't judge your finances. Deal?
 
 ---
 
-**Note**: This is a personal finance tool. Always maintain backups of your financial data and verify calculations independently for critical financial decisions.
+**Disclaimer**: This app projects your financial future based on the data you provide. If your projections look bad, that's between you and your spending habits. We just draw the graphs. 📊
+
+*Made with ☕ and questionable financial decisions*
