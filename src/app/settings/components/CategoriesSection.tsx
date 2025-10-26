@@ -121,10 +121,6 @@ export default function CategoriesSection({
 
     if (categoriesToMigrate.length === 0) return;
 
-    console.log(
-      `Migrating ${categoriesToMigrate.length} categories to DaisyUI colors...`
-    );
-
     for (const category of categoriesToMigrate) {
       const daisyUIColor = convertHexToDaisyUI(category.color);
 

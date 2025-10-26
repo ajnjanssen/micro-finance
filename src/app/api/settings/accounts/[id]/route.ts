@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { addActivityLog } from "@/services/activity-log-service";
 
 export async function PUT(
   request: NextRequest,
@@ -31,6 +32,16 @@ export async function PUT(
       "utf-8"
     );
 
+    // Log the activity
+    await addActivityLog("update", "account", {
+      entityId: updatedAccount.id,
+      entityName: updatedAccount.name,
+      description: `Rekening bijgewerkt: ${updatedAccount.name}`,
+      metadata: {
+        type: updatedAccount.type,
+      },
+    });
+
     return NextResponse.json(updatedAccount);
   } catch (error) {
     console.error("Error updating account:", error);
@@ -60,6 +71,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
+    const deletedAccount = financialData.accounts[accountIndex];
+
     financialData.accounts.splice(accountIndex, 1);
     financialData.lastUpdated = new Date().toISOString();
 
@@ -68,6 +81,16 @@ export async function DELETE(
       JSON.stringify(financialData, null, 2),
       "utf-8"
     );
+
+    // Log the activity
+    await addActivityLog("delete", "account", {
+      entityId: deletedAccount.id,
+      entityName: deletedAccount.name,
+      description: `Rekening verwijderd: ${deletedAccount.name}`,
+      metadata: {
+        type: deletedAccount.type,
+      },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

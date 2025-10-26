@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { addActivityLog } from "@/services/activity-log-service";
 
 export async function GET() {
   try {
@@ -34,6 +35,16 @@ export async function POST(request: NextRequest) {
       JSON.stringify(financialData, null, 2),
       "utf-8"
     );
+
+    // Log the activity
+    await addActivityLog("create", "account", {
+      entityId: newAccount.id,
+      entityName: newAccount.name,
+      description: `Rekening aangemaakt: ${newAccount.name}`,
+      metadata: {
+        type: newAccount.type,
+      },
+    });
 
     return NextResponse.json(newAccount);
   } catch (error) {

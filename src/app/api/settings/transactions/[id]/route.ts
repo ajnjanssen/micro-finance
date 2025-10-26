@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { addActivityLog } from "@/services/activity-log-service";
 
 export async function PUT(
   request: NextRequest,
@@ -112,6 +113,8 @@ export async function DELETE(
       );
     }
 
+    const deletedTransaction = financialData.transactions[transactionIndex];
+
     financialData.transactions.splice(transactionIndex, 1);
     financialData.lastUpdated = new Date().toISOString();
 
@@ -120,6 +123,17 @@ export async function DELETE(
       JSON.stringify(financialData, null, 2),
       "utf-8"
     );
+
+    // Log the activity
+    await addActivityLog("delete", "transaction", {
+      entityId: deletedTransaction.id,
+      entityName: deletedTransaction.description || "Transactie",
+      description: `Transactie verwijderd: ${deletedTransaction.amount}`,
+      metadata: {
+        amount: deletedTransaction.amount,
+        type: deletedTransaction.type,
+      },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

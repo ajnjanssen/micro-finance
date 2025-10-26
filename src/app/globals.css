@@ -28,4 +28,67 @@ tspan {
 /* Chart grid */
 .MuiChartsGrid-line {
   @apply stroke-base-content/5;
-} 
+}
+
+.MuiChartsLegend-label {
+  @apply text-base-content;
+}
+
+.MuiChartsAxisHighlight-root {
+  @apply !stroke-primary;
+}
+
+/* Custom tooltip styling with DaisyUI */
+.MuiChartsTooltip-root {
+  background-color: transparent !important;
+}
+
+.MuiChartsTooltip-paper {
+  @apply bg-base-100 border border-base-300 shadow-xl rounded-lg;
+  padding: 0.75rem !important;
+}
+
+.MuiChartsTooltip-table {
+  border-spacing: 0 !important;
+}
+
+.MuiChartsTooltip-table caption {
+  @apply text-base-content font-semibold text-sm mb-2;
+  text-align: left !important;
+}
+
+.MuiChartsTooltip-cell {
+  @apply text-base-content;
+  padding: 4px 8px !important;
+}
+
+.MuiChartsTooltip-labelCell {
+  font-weight: 400 !important;
+}
+
+.MuiChartsTooltip-valueCell {
+  @apply font-mono font-semibold text-base-content;
+  text-align: right !important;
+}
+
+.MuiChartsTooltip-valueCell span.text-success,
+.MuiTypography-root.MuiChartsTooltip-valueCell span.text-success {
+  color: oklch(var(--su)) !important;
+}
+
+.MuiChartsTooltip-valueCell span.text-error,
+.MuiTypography-root.MuiChartsTooltip-valueCell span.text-error {
+  color: oklch(var(--er)) !important;
+}
+
+.MuiChartsTooltip-mark {
+  @apply rounded-sm;
+}
+
+.MuiChartsTooltip-paper {
+  @apply !bg-base-300 text-base-content;
+}
+
+.MuiTypography-root {
+  @apply !text-base-content;
+}

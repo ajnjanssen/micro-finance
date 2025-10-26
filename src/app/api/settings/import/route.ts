@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { addActivityLog } from "@/services/activity-log-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,6 +29,17 @@ export async function POST(request: NextRequest) {
       JSON.stringify(financialData, null, 2),
       "utf-8"
     );
+
+    // Log the activity
+    await addActivityLog("create", "config", {
+      entityId: "import",
+      entityName: "Instellingen import",
+      description: `Instellingen geïmporteerd (${importData.accounts?.length || 0} rekeningen, ${importData.categories?.length || 0} categorieën)`,
+      metadata: {
+        accountsCount: importData.accounts?.length || 0,
+        categoriesCount: importData.categories?.length || 0,
+      },
+    });
 
     return NextResponse.json({
       success: true,

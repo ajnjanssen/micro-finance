@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { addActivityLog } from "@/services/activity-log-service";
 
 export async function GET() {
   try {
@@ -34,6 +35,18 @@ export async function POST(request: NextRequest) {
       JSON.stringify(financialData, null, 2),
       "utf-8"
     );
+
+    // Log the activity
+    await addActivityLog("create", "transaction", {
+      entityId: newTransaction.id,
+      entityName: newTransaction.description || "Nieuwe transactie",
+      description: `Transactie toegevoegd: ${newTransaction.amount} voor ${newTransaction.description || "onbekend"}`,
+      metadata: {
+        amount: newTransaction.amount,
+        type: newTransaction.type,
+        category: newTransaction.category,
+      },
+    });
 
     return NextResponse.json(newTransaction);
   } catch (error) {
@@ -86,7 +99,20 @@ export async function PUT(request: NextRequest) {
       "utf-8"
     );
 
-    return NextResponse.json(financialData.transactions[transactionIndex]);
+    const updatedTransaction = financialData.transactions[transactionIndex];
+
+    // Log the activity
+    await addActivityLog("update", "transaction", {
+      entityId: updatedTransaction.id,
+      entityName: updatedTransaction.description || "Transactie",
+      description: `Transactie bijgewerkt`,
+      metadata: {
+        amount: updatedTransaction.amount,
+        category: updatedTransaction.category,
+      },
+    });
+
+    return NextResponse.json(updatedTransaction);
   } catch (error) {
     console.error("Error updating transaction:", error);
     return NextResponse.json(

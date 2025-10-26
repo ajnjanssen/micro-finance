@@ -3,6 +3,7 @@
  */
 import { NextResponse } from "next/server";
 import { FinancialConfigService } from "@/services/financial-config-service";
+import { addActivityLog } from "@/services/activity-log-service";
 
 export async function GET() {
   try {
@@ -23,6 +24,19 @@ export async function POST(request: Request) {
     const data = await request.json();
     const service = FinancialConfigService.getInstance();
     const newExpense = await service.addRecurringExpense(data);
+
+    // Log the activity
+    await addActivityLog("create", "config", {
+      entityId: newExpense.id,
+      entityName: newExpense.name || "Terugkerende uitgave",
+      description: `Terugkerende uitgave toegevoegd: ${newExpense.name}`,
+      metadata: {
+        amount: newExpense.amount,
+        frequency: newExpense.frequency,
+        category: newExpense.category,
+      },
+    });
+
     return NextResponse.json(newExpense);
   } catch (error) {
     console.error("Error adding recurring expense:", error);
@@ -38,6 +52,19 @@ export async function PUT(request: Request) {
     const { id, ...updates } = await request.json();
     const service = FinancialConfigService.getInstance();
     await service.updateRecurringExpense(id, updates);
+
+    // Log the activity
+    await addActivityLog("update", "config", {
+      entityId: id,
+      entityName: updates.name || "Terugkerende uitgave",
+      description: `Terugkerende uitgave bijgewerkt: ${updates.name || id}`,
+      metadata: {
+        amount: updates.amount,
+        frequency: updates.frequency,
+        category: updates.category,
+      },
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating recurring expense:", error);
@@ -57,7 +84,22 @@ export async function DELETE(request: Request) {
     }
 
     const service = FinancialConfigService.getInstance();
+    const expense = await service.getRecurringExpenses().then(expenses => 
+      expenses.find(e => e.id === id)
+    );
     await service.deleteRecurringExpense(id);
+
+    // Log the activity
+    await addActivityLog("delete", "config", {
+      entityId: id,
+      entityName: expense?.name || "Terugkerende uitgave",
+      description: `Terugkerende uitgave verwijderd: ${expense?.name || id}`,
+      metadata: {
+        amount: expense?.amount,
+        category: expense?.category,
+      },
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting recurring expense:", error);

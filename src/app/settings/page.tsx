@@ -9,12 +9,15 @@ import AccountsSection from "./components/AccountsSection";
 import TransactionsSection from "./components/TransactionsSection";
 import ConfigurationSection from "./components/ConfigurationSection";
 import CategoriesSection from "./components/CategoriesSection";
+import AppearanceSection from "./components/AppearanceSection";
+import ActivityLogSection from "./components/ActivityLogSection";
 
 type TabType =
   | "accounts"
   | "transactions"
   | "categories"
   | "configuration"
+  | "appearance"
   | "logs";
 
 function SettingsPageContent() {
@@ -27,8 +30,22 @@ function SettingsPageContent() {
   const [activeTab, setActiveTab] = useState<TabType>("accounts");
 
   useEffect(() => {
-    if (tabParam === "configure") {
-      setActiveTab("configuration");
+    if (tabParam) {
+      // Map "configure" to "configuration" for backwards compatibility
+      const tab = tabParam === "configure" ? "configuration" : tabParam;
+      // Only set if it's a valid tab type
+      if (
+        [
+          "accounts",
+          "transactions",
+          "categories",
+          "configuration",
+          "appearance",
+          "logs",
+        ].includes(tab)
+      ) {
+        setActiveTab(tab as TabType);
+      }
     }
   }, [tabParam]);
 
@@ -82,11 +99,8 @@ function SettingsPageContent() {
             {activeTab === "configuration" && (
               <ConfigurationSection onUpdate={reload} />
             )}
-            {activeTab === "logs" && (
-              <div>
-                <p>Last Updated: {new Date(lastUpdated).toLocaleString()}</p>
-              </div>
-            )}
+            {activeTab === "appearance" && <AppearanceSection />}
+            {activeTab === "logs" && <ActivityLogSection />}
           </main>
         </div>
       </div>

@@ -1,0 +1,12 @@
+{
+  "theme": "sunset",
+  "typography": {
+    "enableProse": true,
+    "proseSize": "prose-base",
+    "headingStyle": "bold",
+    "bodyTextSize": "text-base",
+    "lineHeight": "normal",
+    "letterSpacing": "normal"
+  },
+  "version": "1.0.0"
+}

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
+import { addActivityLog } from "@/services/activity-log-service";
 
 // Keyword patterns for auto-categorization
 const categoryPatterns: { [key: string]: string[] } = {
@@ -326,6 +327,16 @@ export async function POST(request: NextRequest) {
         JSON.stringify(financialData, null, 2),
         "utf-8"
       );
+
+      // Log the activity
+      await addActivityLog("update", "transaction", {
+        entityId: "bulk-auto-categorize",
+        entityName: "Auto-categorisatie",
+        description: `${categorizedCount} transacties automatisch gecategoriseerd`,
+        metadata: {
+          count: categorizedCount,
+        },
+      });
     }
 
     return NextResponse.json({
