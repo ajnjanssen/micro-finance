@@ -3,6 +3,7 @@ import { FinancialDataService } from "@/services/financial-data";
 import { BudgetService } from "@/services/budget-service";
 import { CategoryService } from "@/services/category-service";
 import { TransactionService } from "@/services/transaction-service";
+import { AssetsLiabilitiesService } from "@/services/assets-liabilities-service";
 import fs from "fs/promises";
 import path from "path";
 
@@ -49,12 +50,32 @@ export async function GET(request: NextRequest) {
       month
     );
 
-    // Aggregate by category using TransactionService
-    const spentByCategory =
-      transactionService.aggregateByCategory(monthExpenses);
-
-    // Load budget mappings and user categories to check which are actually mapped
+    // Load budget mappings to convert transaction categories to budget categories
     const budgetMappings = configData.budgetCategoryMappings || {};
+
+    // Create reverse mapping: categoryId -> budgetCategory
+    const categoryToBudget = new Map<string, string>();
+    for (const [budgetCat, categoryIds] of Object.entries(budgetMappings)) {
+      const ids = Array.isArray(categoryIds) ? categoryIds : [categoryIds];
+      for (const catId of ids) {
+        if (typeof catId === "string") {
+          categoryToBudget.set(catId, budgetCat);
+        }
+      }
+    }
+
+    // Aggregate spending by budget category (not transaction category)
+    const spentByCategory = new Map<string, number>();
+    for (const transaction of monthExpenses) {
+      const budgetCategory = categoryToBudget.get(transaction.category);
+      if (budgetCategory) {
+        const current = spentByCategory.get(budgetCategory) || 0;
+        spentByCategory.set(
+          budgetCategory,
+          current + Math.abs(transaction.amount)
+        );
+      }
+    }
 
     // Flatten the array values to get all mapped category IDs
     const mappedCategoryIds = new Set(
@@ -108,7 +129,8 @@ export async function GET(request: NextRequest) {
       monthlyIncome,
       configuredExpenses,
       data.transactions,
-      endDate
+      endDate,
+      spentByCategory
     );
 
     // Generate smart suggestions for unmapped categories
@@ -123,9 +145,12 @@ export async function GET(request: NextRequest) {
     );
 
     // Calculate summary totals
-    const studentDebt = 59.77;
-    const availableForSpending = monthlyIncome - savingsGoal - studentDebt;
-    const totalSpent = Object.values(spentByCategory).reduce(
+    const assetsService = AssetsLiabilitiesService.getInstance();
+    const totalDebtPayments = await assetsService.getTotalMonthlyDebtPayments();
+
+    const availableForSpending =
+      monthlyIncome - savingsGoal - totalDebtPayments;
+    const totalSpent = Array.from(spentByCategory.values()).reduce(
       (sum, val) => sum + val,
       0
     );
@@ -136,7 +161,7 @@ export async function GET(request: NextRequest) {
       summary: {
         monthlyIncome,
         savingsGoal,
-        studentDebt,
+        debtPayments: totalDebtPayments,
         availableForSpending,
         totalSpent,
       },

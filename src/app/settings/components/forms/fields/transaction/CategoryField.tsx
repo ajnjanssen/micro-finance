@@ -1,4 +1,5 @@
 import { Category } from "@/types/finance";
+import Select from "@/components/ui/Select";
 
 interface CategoryFieldProps {
   value: string;
@@ -20,7 +21,7 @@ export default function CategoryField({
       <label className="label">
         <span className="label-text">Category</span>
       </label>
-      <select
+      <Select
         value={value}
         onChange={(e) => {
           if (e.target.value === "__new__") {
@@ -29,7 +30,7 @@ export default function CategoryField({
             onChange(e.target.value);
           }
         }}
-        className="select select-bordered w-full"
+        className="select-bordered"
         required
       >
         <option value="">Select Category</option>
@@ -41,7 +42,7 @@ export default function CategoryField({
             </option>
           ))}
         <option value="__new__">+ Add New Category</option>
-      </select>
+      </Select>
     </div>
   );
 }

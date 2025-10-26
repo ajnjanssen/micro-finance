@@ -438,7 +438,7 @@ export default function CategoriesSection({
       <div className="space-y-6">
         {Object.entries(groupedCategories).map(([type, typeCategories]) => (
           <div key={type} className="card bg-base-100 shadow">
-            <div className="card-body p-0">
+            <div className="card-body p-6">
               <h3 className="card-title">
                 {typeLabels[type as keyof typeof typeLabels]}
                 <span className="badge badge-neutral">

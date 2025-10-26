@@ -15,7 +15,7 @@ export default function RecurringTypeField({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="select select-bordered w-full"
+        className="select w-fit min-w-60 px-4 rounded-lg select-bordered"
       >
         <option value="monthly">Monthly</option>
         <option value="yearly">Yearly</option>

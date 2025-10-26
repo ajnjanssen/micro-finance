@@ -20,7 +20,7 @@ export default function Select({
     <select
       id={selectId}
       name={selectName}
-      className={`select w-full ${className}`.trim()}
+      className={`select w-fit min-w-60 px-4 rounded-lg select-bordered ${className}`.trim()}
       {...props}
     >
       {children}

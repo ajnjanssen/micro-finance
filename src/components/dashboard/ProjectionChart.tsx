@@ -1,10 +1,12 @@
 import { LineChart } from "@mui/x-charts/LineChart";
 import type { BalanceProjection, Account } from "@/types/finance";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { MonthlyBreakdown } from "./MonthlyBreakdown";
 
 interface ProjectionChartProps {
   projections: BalanceProjection[];
   accounts: Account[];
+  currentBalance?: number;
 }
 
 // Custom tooltip component using DaisyUI styling
@@ -117,6 +119,7 @@ const FALLBACK_COLORS = {
 export function ProjectionChart({
   projections,
   accounts,
+  currentBalance = 0,
 }: ProjectionChartProps) {
   const [chartColors, setChartColors] = useState(FALLBACK_COLORS);
 
@@ -152,125 +155,42 @@ export function ProjectionChart({
     }
   }, []);
 
-  // Style tooltip values after they're rendered
-  useEffect(() => {
-    const styleTooltips = () => {
-      const tooltipCells = document.querySelectorAll(
-        ".MuiChartsTooltip-valueCell"
-      );
-      tooltipCells.forEach((cell) => {
-        const text = cell.textContent || "";
-
-        // Skip if already has span (already styled)
-        if (cell.querySelector("span.text-success, span.text-error")) return;
-
-        // Check if this cell contains change information (has parentheses with + or -)
-        if (text.includes("(") && text.includes("%")) {
-          const hasPositive = text.includes("(+");
-          const hasNegative = text.includes("(-");
-
-          if (hasPositive || hasNegative) {
-            // Split the text to style the change part differently
-            const parts = text.match(/^(.*?)(\(.*?\))$/);
-            if (parts) {
-              const baseValue = parts[1];
-              const changeValue = parts[2];
-
-              const colorClass = hasPositive ? "!text-success" : "!text-error";
-              cell.innerHTML = `${baseValue}<span class="${colorClass}">${changeValue}</span>`;
-            }
-          }
-        }
-      });
-    };
-
-    // Use MutationObserver to detect when tooltips are added to the DOM
-    const observer = new MutationObserver((mutations) => {
-      // Check if any mutations involve tooltip elements
-      const hasTooltipChanges = mutations.some((mutation) => {
-        // Check added nodes
-        const addedTooltip = Array.from(mutation.addedNodes).some(
-          (node) =>
-            node instanceof Element &&
-            (node.classList?.contains("MuiChartsTooltip-root") ||
-              node.querySelector?.(".MuiChartsTooltip-root"))
-        );
-
-        // Also check if content changed in existing tooltips
-        const contentChanged =
-          mutation.type === "characterData" ||
-          (mutation.type === "childList" &&
-            mutation.target instanceof Element &&
-            mutation.target.closest(".MuiChartsTooltip-root"));
-
-        return addedTooltip || contentChanged;
-      });
-
-      if (hasTooltipChanges) {
-        // Use a small timeout to ensure DOM is fully updated
-        setTimeout(styleTooltips, 0);
-      }
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      characterDataOldValue: true,
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
   if (projections.length === 0) return null;
 
-  // Create series for total balance and each account with enhanced tooltip info
-  const series = [
-    {
-      data: projections.map((p) => p.totalBalance),
-      label: "Totaal",
-      color: chartColors.primary,
-      valueFormatter: (value: number | null, context: any) => {
-        if (value === null) return "N/A";
-
-        // Calculate month-over-month change
-        const dataIndex = context?.dataIndex;
-        if (dataIndex !== undefined && dataIndex > 0) {
-          const previousValue = projections[dataIndex - 1]?.totalBalance;
-          if (previousValue) {
-            const change = value - previousValue;
-            const changePercent = ((change / previousValue) * 100).toFixed(1);
-            const changeStr =
-              change >= 0
-                ? `+€${change.toFixed(0)}`
-                : `-€${Math.abs(change).toFixed(0)}`;
-            return `€${value.toFixed(0)} (${changeStr}, ${
-              change >= 0 ? "+" : ""
-            }${changePercent}%)`;
-          }
-        }
-        return `€${value.toFixed(0)}`;
+  // Memoize series data to avoid recalculation on every render
+  const series = useMemo(() => {
+    const seriesData = [
+      {
+        data: projections.map((p) => p.totalBalance),
+        label: "Totaal",
+        color: chartColors.primary,
+        valueFormatter: (value: number | null) => {
+          if (value === null) return "N/A";
+          return `€${value.toFixed(0)}`;
+        },
       },
-    },
-  ];
+    ];
 
-  // Add a series for each account with DaisyUI colors
-  const accountColorKeys: (keyof typeof chartColors)[] = [
-    "secondary",
-    "accent",
-    "neutral",
-  ];
+    // Add a series for each account with DaisyUI colors
+    const accountColorKeys: (keyof typeof chartColors)[] = [
+      "secondary",
+      "accent",
+      "neutral",
+    ];
 
-  accounts.forEach((account, index) => {
-    const colorKey = accountColorKeys[index % accountColorKeys.length];
-    series.push({
-      data: projections.map((p) => p.accountBalances?.[account.id] || 0),
-      label: account.name,
-      color: chartColors[colorKey],
-      valueFormatter: (value: number | null) =>
-        value !== null ? `€${value.toFixed(0)}` : "N/A",
+    accounts.forEach((account, index) => {
+      const colorKey = accountColorKeys[index % accountColorKeys.length];
+      seriesData.push({
+        data: projections.map((p) => p.accountBalances?.[account.id] || 0),
+        label: account.name,
+        color: chartColors[colorKey],
+        valueFormatter: (value: number | null) =>
+          value !== null ? `€${value.toFixed(0)}` : "N/A",
+      });
     });
-  });
+
+    return seriesData;
+  }, [projections, accounts, chartColors]);
 
   const chartData = {
     xAxis: [
@@ -310,6 +230,18 @@ export function ProjectionChart({
               overflow: "visible",
             },
           }}
+        />
+      </div>
+
+      {/* Add the monthly breakdown table */}
+      <div className="mt-6 pt-6 border-t border-base-300">
+        <h4 className="text-lg font-semibold text-base-content mb-3">
+          Toekomstige Maanden
+        </h4>
+        <MonthlyBreakdown
+          projections={projections}
+          currentBalance={currentBalance}
+          accounts={accounts}
         />
       </div>
     </div>

@@ -10,14 +10,14 @@ export default function AccountTypeField({
   onChange,
 }: AccountTypeFieldProps) {
   return (
-    <div>
+    <div className="flex flex-col gap-1">
       <label className="label">
         <span className="label-text">Type</span>
       </label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as Account["type"])}
-        className="select select-bordered w-full"
+        className="select w-fit min-w-60 px-4 rounded-lg select-bordered"
       >
         <option value="checking">Checking</option>
         <option value="savings">Savings</option>

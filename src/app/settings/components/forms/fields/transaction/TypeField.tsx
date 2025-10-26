@@ -12,7 +12,7 @@ export default function TypeField({ value, onChange }: TypeFieldProps) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value as "income" | "expense")}
-        className="select select-bordered w-full"
+        className="select w-fit min-w-60 px-4 rounded-lg select-bordered"
       >
         <option value="expense">Expense</option>
         <option value="income">Income</option>

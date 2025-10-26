@@ -14,7 +14,7 @@ export function MonthlyOverviewCard({ overview }: MonthlyOverviewCardProps) {
 
   return (
     <div className="card bg-base-100 shadow">
-      <div className="card-body p-0">
+      <div className="card-body p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold">
             Maandoverzicht: {overview.month}
@@ -85,14 +85,6 @@ export function MonthlyOverviewCard({ overview }: MonthlyOverviewCardProps) {
                 </div>
               )}
           </div>
-        </div>
-        <div className="mt-4 p-3 bg-info/10 rounded-lg border-l-4 border-info">
-          <p className="text-sm text-base-content/70">
-            <strong>💡 Uitleg:</strong> Deze bedragen zijn gebaseerd op je
-            terugkerende inkomsten en uitgaven. Het "Netto Groei" bedrag (
-            {formatCurrency(overview.netAmount)}) is hoeveel je vermogen elke
-            maand groeit als alles volgens plan verloopt.
-          </p>
         </div>
       </div>
     </div>

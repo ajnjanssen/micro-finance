@@ -167,7 +167,7 @@ export default function AppearanceSection() {
                 <span className="label-text font-semibold">Prose Size</span>
               </label>
               <select
-                className="select select-bordered"
+                className="select w-fit min-w-60 px-4 rounded-lg select-bordered"
                 value={settings.typography.proseSize}
                 onChange={(e) =>
                   handleTypographyChange("proseSize", e.target.value)
@@ -188,7 +188,7 @@ export default function AppearanceSection() {
                 <span className="label-text font-semibold">Heading Style</span>
               </label>
               <select
-                className="select select-bordered"
+                className="select w-fit min-w-60 px-4 rounded-lg select-bordered"
                 value={settings.typography.headingStyle}
                 onChange={(e) =>
                   handleTypographyChange("headingStyle", e.target.value)
@@ -207,7 +207,7 @@ export default function AppearanceSection() {
                 <span className="label-text font-semibold">Body Text Size</span>
               </label>
               <select
-                className="select select-bordered"
+                className="select w-fit min-w-60 px-4 rounded-lg select-bordered"
                 value={settings.typography.bodyTextSize}
                 onChange={(e) =>
                   handleTypographyChange("bodyTextSize", e.target.value)
@@ -226,7 +226,7 @@ export default function AppearanceSection() {
                 <span className="label-text font-semibold">Line Height</span>
               </label>
               <select
-                className="select select-bordered"
+                className="select w-fit min-w-60 px-4 rounded-lg select-bordered"
                 value={settings.typography.lineHeight}
                 onChange={(e) =>
                   handleTypographyChange("lineHeight", e.target.value)
@@ -245,7 +245,7 @@ export default function AppearanceSection() {
                 <span className="label-text font-semibold">Letter Spacing</span>
               </label>
               <select
-                className="select select-bordered"
+                className="select w-fit min-w-60 px-4 rounded-lg select-bordered"
                 value={settings.typography.letterSpacing}
                 onChange={(e) =>
                   handleTypographyChange("letterSpacing", e.target.value)

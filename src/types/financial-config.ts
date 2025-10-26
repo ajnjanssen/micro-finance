@@ -5,6 +5,8 @@
  * NOT derived from transactions - manually configured by user.
  */
 
+import type { Asset, Debt } from "./assets-liabilities";
+
 export type Frequency =
   | "weekly"
   | "biweekly"
@@ -98,6 +100,15 @@ export interface FinancialConfiguration {
   // Goals
   savingsGoals: SavingsGoal[];
 
+  // Assets & Liabilities
+  assets?: Asset[];
+  liabilities?: Debt[];
+
+  // Budget category mappings (from budget categories to transaction category IDs)
+  budgetCategoryMappings?: {
+    [budgetCategory: string]: string | string[];
+  };
+
   // Settings
   settings: {
     defaultCurrency: "EUR" | "USD" | "GBP";
@@ -110,6 +121,9 @@ export interface FinancialConfiguration {
     };
   };
 }
+
+// Re-export types from assets-liabilities
+export type { Asset, Debt, AssetType, DebtType } from "./assets-liabilities";
 
 /**
  * Projection Result (calculated from configuration)

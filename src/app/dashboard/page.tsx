@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Dashboard from "@/components/dashboard";
 import { FinancialData } from "@/types/finance";
+import { PageLayout } from "@/components/PageLayout";
 
 export default function DashboardPage() {
   const [financialData, setFinancialData] = useState<FinancialData | null>(
@@ -57,34 +58,32 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen p-6">
+      <PageLayout>
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-base-300 rounded w-1/4"></div>
           <div className="h-64 bg-base-300 rounded"></div>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   if (!financialData) {
     return (
-      <div className="min-h-screen p-6">
+      <PageLayout>
         <div className="alert alert-error">
           <span>Kan financiële data niet laden</span>
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <Dashboard 
-          currentBalance={totalBalance} 
-          accounts={financialData.accounts}
-          accountBalances={accountBalances}
-        />
-      </div>
-    </div>
+    <PageLayout maxWidth="xl">
+      <Dashboard
+        currentBalance={totalBalance}
+        accounts={financialData.accounts}
+        accountBalances={accountBalances}
+      />
+    </PageLayout>
   );
 }

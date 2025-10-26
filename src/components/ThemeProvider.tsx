@@ -22,12 +22,26 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadSettings = async () => {
       try {
+        // First try to get from localStorage for instant theme
+        const cached = localStorage.getItem("app-settings");
+        if (cached) {
+          const cachedSettings = JSON.parse(cached);
+          setSettings(cachedSettings);
+          document.documentElement.setAttribute(
+            "data-theme",
+            cachedSettings.theme
+          );
+        }
+
+        // Then fetch from API to sync
         const response = await fetch("/api/app-settings");
         if (response.ok) {
           const data = await response.json();
           setSettings(data);
           // Apply theme to HTML element
           document.documentElement.setAttribute("data-theme", data.theme);
+          // Cache in localStorage
+          localStorage.setItem("app-settings", JSON.stringify(data));
         }
       } catch (error) {
         console.error("Failed to load app settings:", error);
@@ -57,6 +71,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         setSettings(data);
         // Apply theme to HTML element immediately
         document.documentElement.setAttribute("data-theme", data.theme);
+        // Cache in localStorage for instant load on next page
+        localStorage.setItem("app-settings", JSON.stringify(data));
       }
     } catch (error) {
       console.error("Failed to update app settings:", error);

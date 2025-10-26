@@ -25,14 +25,35 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="nl" data-theme="sunset">
+    <html lang="nl" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const settings = localStorage.getItem('app-settings');
+                if (settings) {
+                  const { theme } = JSON.parse(settings);
+                  if (theme) {
+                    document.documentElement.setAttribute('data-theme', theme);
+                  }
+                } else {
+                  document.documentElement.setAttribute('data-theme', 'sunset');
+                }
+              } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'sunset');
+              }
+            `,
+          }}
+        />
+      </head>
       <body className={`${poppins.variable} antialiased bg-base-100`}>
         <ThemeProvider>
           <ToastProvider>
-            <div className="sticky top-0 z-50 bg-base-100 shadow-sm">
+            <div className="flex min-h-screen">
               <Navigation />
+              <main className="flex-1 overflow-x-hidden">{children}</main>
             </div>
-            {children}
           </ToastProvider>
         </ThemeProvider>
       </body>

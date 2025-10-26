@@ -1,6 +1,6 @@
 # 💸 Micro Finance
 
-> *Because Excel spreadsheets are so 2005*
+> _Because Excel spreadsheets are so 2005_
 
 A personal finance app that helps you pretend you have your life together by projecting how rich (or poor) you'll be in 36 months. Spoiler: probably still broke, but at least you'll see it coming in a beautiful chart! 📉
 
@@ -51,6 +51,7 @@ First time? The onboarding wizard will hold your hand through setup. It's like I
 5. You either feel good or reconsider your Netflix subscription
 
 The app stores everything locally in JSON files because:
+
 - No subscription fees (ironic, right?)
 - Your financial shame stays on your computer
 - No cloud provider judging your spending on bubble tea
@@ -59,7 +60,7 @@ The app stores everything locally in JSON files because:
 
 **Configuration > Calculation**
 
-This app doesn't try to be smart by analyzing your spending patterns. Instead, *you* tell it what your financial life *should* look like, and it projects the future based on that. Think of it as financial planning, not financial therapy.
+This app doesn't try to be smart by analyzing your spending patterns. Instead, _you_ tell it what your financial life _should_ look like, and it projects the future based on that. Think of it as financial planning, not financial therapy.
 
 ## 🤓 For Developers
 
@@ -74,6 +75,7 @@ This app doesn't try to be smart by analyzing your spending patterns. Instead, *
 - Charts occasionally tell the truth
 - Budget percentages can't fix poor life choices (we tried)
 - Won't help you explain your spending to your partner
+- **Chart tooltips can be laggy on hover** - MUI X Charts tooltip rendering causes performance issues when quickly moving mouse across chart data points. Workaround: hover slowly or click on data points in the monthly breakdown table below the chart instead.
 
 ## 📜 License
 
@@ -83,4 +85,4 @@ Private & personal use. Don't judge our code, we won't judge your finances. Deal
 
 **Disclaimer**: This app projects your financial future based on the data you provide. If your projections look bad, that's between you and your spending habits. We just draw the graphs. 📊
 
-*Made with ☕ and questionable financial decisions*
+_Made with ☕ and questionable financial decisions_

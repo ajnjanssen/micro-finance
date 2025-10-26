@@ -35,7 +35,7 @@ export function DashboardHeader({
           <span className="label-text">Projectie periode</span>
         </label>
         <select
-          className="select select-bordered"
+          className="select w-fit min-w-60 px-4 rounded-lg select-bordered"
           value={projectionMonths}
           onChange={(e) => onMonthsChange(Number(e.target.value))}
         >

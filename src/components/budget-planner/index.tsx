@@ -27,18 +27,18 @@ export default function BudgetPlanner() {
 
   return (
     <div className="space-y-6">
-      <div className="card bg-base-100 shadow">
+      <div className="card bg-base-100 shadow p-6">
         <h2 className="text-2xl font-bold mb-4">Budget Planner</h2>
 
         <div className="flex gap-4 mb-6">
-          <div className="form-control flex-1">
+          <div className="form-control flex gap-4">
             <label className="label">
               <span className="label-text">Maand</span>
             </label>
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="select select-bordered"
+              className="select w-fit min-w-60 px-4 rounded-lg select-bordered"
             >
               {getMonthOptions().map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -82,7 +82,7 @@ export default function BudgetPlanner() {
       <SummaryStats budgets={budgets} />
 
       <div className="card bg-base-100 shadow">
-        <BudgetTable budgets={budgets} />
+        <BudgetTable budgets={budgets} selectedMonth={selectedMonth} />
       </div>
     </div>
   );

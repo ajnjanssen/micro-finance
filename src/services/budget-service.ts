@@ -85,7 +85,7 @@ export class BudgetService {
       wants: BUDGET_PERCENTAGES.WANTS,
       savings: BUDGET_PERCENTAGES.SAVINGS,
     };
-    
+
     return {
       needs: totalIncome * percentages.needs,
       wants: totalIncome * percentages.wants,
@@ -300,13 +300,15 @@ export class BudgetService {
    * @param configuredExpenses - Configured recurring expenses
    * @param transactions - All transactions
    * @param monthEndDate - End date of month
+   * @param spentByBudgetCategory - Optional pre-calculated spending by budget category
    * @returns Array of category budgets
    */
   calculateCategoryBudgets(
     totalIncome: number,
     configuredExpenses: RecurringExpense[],
     transactions: Transaction[],
-    monthEndDate: Date
+    monthEndDate: Date,
+    spentByBudgetCategory?: Map<string, number>
   ): CategoryBudget[] {
     // Calculate spent by category from transactions
     const monthExpenses = this.transactionService.getMonthExpenses(
@@ -315,13 +317,17 @@ export class BudgetService {
       monthEndDate.getMonth() + 1
     );
 
-    const spentByCategory = new Map<string, number>();
-    for (const transaction of monthExpenses) {
-      const category = this.categoryService.normalizeCategory(
-        transaction.category
-      );
-      const current = spentByCategory.get(category) || 0;
-      spentByCategory.set(category, current + Math.abs(transaction.amount));
+    const spentByCategory = spentByBudgetCategory || new Map<string, number>();
+
+    // Only calculate if not provided (for backwards compatibility)
+    if (!spentByBudgetCategory) {
+      for (const transaction of monthExpenses) {
+        const category = this.categoryService.normalizeCategory(
+          transaction.category
+        );
+        const current = spentByCategory.get(category) || 0;
+        spentByCategory.set(category, current + Math.abs(transaction.amount));
+      }
     }
 
     // Add configured expenses to spent (these are guaranteed to happen)

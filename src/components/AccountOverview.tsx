@@ -63,7 +63,7 @@ export default function AccountOverview({
   }, {} as { [key: string]: Account[] });
 
   return (
-    <div className="card p-6">
+    <div className="card p-6 mt-6 bg-base-100 shadow">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-base-content">
           Rekening Overzicht

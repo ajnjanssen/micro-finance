@@ -1,4 +1,5 @@
 import { Account } from "@/types/finance";
+import Select from "@/components/ui/Select";
 
 interface AccountFieldProps {
   value: string;
@@ -16,10 +17,10 @@ export default function AccountField({
       <label className="label">
         <span className="label-text">Account</span>
       </label>
-      <select
+      <Select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="select select-bordered w-full"
+        className="select-bordered"
         required
       >
         <option value="">Select Account</option>
@@ -28,7 +29,7 @@ export default function AccountField({
             {acc.name}
           </option>
         ))}
-      </select>
+      </Select>
     </div>
   );
 }

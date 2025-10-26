@@ -92,3 +92,7 @@ tspan {
 .MuiTypography-root {
   @apply !text-base-content;
 }
+
+.MuiChartsAxis-line {
+  @apply !stroke-base-content/20;
+}

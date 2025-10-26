@@ -10,27 +10,26 @@ export function SettingsHeader({ onReload }: SettingsHeaderProps) {
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <a href="/" className="text-primary hover:text-primary-focus">
+            <a href="/" className="text-base-content hover:text-base-focus">
               ← Terug naar Dashboard
             </a>
             <div className="border-l border-base-300 h-6" />
-            <h1 className="text-2xl font-bold text-base-content">
-              Instellingen
-            </h1>
           </div>
-          <div className="flex gap-2">
-            <button onClick={handleExport} className="btn btn-outline btn-sm">
-              📤 Export
-            </button>
-            <label className="btn btn-outline btn-sm">
-              📥 Import
-              <input
-                type="file"
-                accept=".json"
-                onChange={(e) => handleImport(e, onReload)}
-                className="hidden"
-              />
-            </label>
+          <div className="flex items-center justify-between w-full md:w-auto">
+            <div className="flex gap-2">
+              <button onClick={handleExport} className="btn btn-outline btn-sm">
+                📤 Export
+              </button>
+              <label className="btn btn-outline btn-sm">
+                📥 Import
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={(e) => handleImport(e, onReload)}
+                  className="hidden"
+                />
+              </label>
+            </div>
           </div>
         </div>
       </div>

@@ -11,6 +11,7 @@ import ConfigurationSection from "./components/ConfigurationSection";
 import CategoriesSection from "./components/CategoriesSection";
 import AppearanceSection from "./components/AppearanceSection";
 import ActivityLogSection from "./components/ActivityLogSection";
+import { PageLayout } from "@/components/PageLayout";
 
 type TabType =
   | "accounts"
@@ -51,60 +52,56 @@ function SettingsPageContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen p-6">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-2xl font-bold mb-6">Settings</h1>
-          <div className="animate-pulse space-y-4">
-            <div className="h-12 bg-base-300 rounded" />
-            <div className="h-64 bg-base-300 rounded" />
-          </div>
+      <PageLayout>
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <div className="animate-pulse space-y-4">
+          <div className="h-12 bg-base-300 rounded" />
+          <div className="h-64 bg-base-300 rounded" />
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="min-h-screen">
+    <PageLayout maxWidth="xl">
       <SettingsHeader onReload={reload} />
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="grid grid-cols-12 gap-6">
-          <SettingsSidebar
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            accountsCount={accounts.length}
-            transactionsCount={transactions.length}
-            categoriesCount={categories.length}
-          />
+      <div className="grid grid-cols-12 gap-6">
+        <SettingsSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          accountsCount={accounts.length}
+          transactionsCount={transactions.length}
+          categoriesCount={categories.length}
+        />
 
-          <main className="col-span-12 md:col-span-9">
-            {activeTab === "accounts" && (
-              <AccountsSection accounts={accounts} onUpdate={reload} />
-            )}
-            {activeTab === "transactions" && (
-              <TransactionsSection
-                transactions={transactions}
-                categories={categories}
-                accounts={accounts}
-                onUpdate={reload}
-              />
-            )}
-            {activeTab === "categories" && (
-              <CategoriesSection
-                categories={categories}
-                transactions={transactions}
-                onUpdate={reload}
-              />
-            )}
-            {activeTab === "configuration" && (
-              <ConfigurationSection onUpdate={reload} />
-            )}
-            {activeTab === "appearance" && <AppearanceSection />}
-            {activeTab === "logs" && <ActivityLogSection />}
-          </main>
-        </div>
+        <main className="col-span-12 md:col-span-9">
+          {activeTab === "accounts" && (
+            <AccountsSection accounts={accounts} onUpdate={reload} />
+          )}
+          {activeTab === "transactions" && (
+            <TransactionsSection
+              transactions={transactions}
+              categories={categories}
+              accounts={accounts}
+              onUpdate={reload}
+            />
+          )}
+          {activeTab === "categories" && (
+            <CategoriesSection
+              categories={categories}
+              transactions={transactions}
+              onUpdate={reload}
+            />
+          )}
+          {activeTab === "configuration" && (
+            <ConfigurationSection onUpdate={reload} />
+          )}
+          {activeTab === "appearance" && <AppearanceSection />}
+          {activeTab === "logs" && <ActivityLogSection />}
+        </main>
       </div>
-    </div>
+    </PageLayout>
   );
 }
 
