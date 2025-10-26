@@ -5,14 +5,26 @@ import { formatCurrency, formatPercentage } from "@/utils/formatters";
 import LoadingState from "@/components/ui/LoadingState";
 import PageHeader from "@/components/ui/PageHeader";
 import { SavingsTransactionsModal } from "@/components/savings-goals/SavingsTransactionsModal";
+import { GoalForm } from "@/components/savings-goals/GoalForm";
 import { differenceInMonths, addMonths, format } from "date-fns";
 import { nl } from "date-fns/locale";
 import { useState } from "react";
+import type { SavingsGoal } from "@/types/savings-goals";
 
 export default function SpaardoelenPage() {
-  const { goals, transactions, loading, reload } = useSavingsGoals();
+  const {
+    goals,
+    transactions,
+    accounts,
+    loading,
+    reload,
+    addGoal,
+    updateGoal,
+  } = useSavingsGoals();
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [spendingGoalId, setSpendingGoalId] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<SavingsGoal | null>(null);
 
   const handleMarkAsSpent = async (goalId: string) => {
     if (
@@ -43,6 +55,22 @@ export default function SpaardoelenPage() {
     }
   };
 
+  const handleSubmit = async (formData: any) => {
+    try {
+      if (editingGoal) {
+        await updateGoal(editingGoal.id, formData);
+        setEditingGoal(null);
+      } else {
+        await addGoal(formData);
+        setShowAddForm(false);
+      }
+      await reload();
+    } catch (error) {
+      console.error("Error saving goal:", error);
+      alert("❌ Er ging iets fout bij het opslaan");
+    }
+  };
+
   if (loading) return <LoadingState />;
 
   const selectedGoal = goals.find((g) => g.id === selectedGoalId);
@@ -53,8 +81,25 @@ export default function SpaardoelenPage() {
         <PageHeader
           title="Spaardoelen"
           buttonLabel="+ Nieuw Spaardoel"
-          onButtonClick={() => alert("Nieuw spaardoel toevoegen")}
+          onButtonClick={() => setShowAddForm(true)}
         />
+
+        {/* Add Goal Form */}
+        {(showAddForm || editingGoal) && (
+          <div className="mb-6">
+            <GoalForm
+              editingGoal={editingGoal}
+              defaultMonthlySavings={500}
+              transactions={transactions}
+              accounts={accounts}
+              onSubmit={handleSubmit}
+              onCancel={() => {
+                setShowAddForm(false);
+                setEditingGoal(null);
+              }}
+            />
+          </div>
+        )}
 
         {goals.length === 0 && (
           <div className="alert alert-info">
@@ -203,6 +248,16 @@ export default function SpaardoelenPage() {
                           </span>
                         )}
                         <span className="capitalize">🎯 {goal.priority}</span>
+                        {goal.fromAccountId && goal.toAccountId && (
+                          <span className="text-base-content/60">
+                            🔄{" "}
+                            {accounts.find((a) => a.id === goal.fromAccountId)
+                              ?.name || "?"}{" "}
+                            →{" "}
+                            {accounts.find((a) => a.id === goal.toAccountId)
+                              ?.name || "?"}
+                          </span>
+                        )}
                       </div>
 
                       {/* Actions */}
@@ -212,6 +267,12 @@ export default function SpaardoelenPage() {
                           onClick={() => setSelectedGoalId(goal.id)}
                         >
                           📊 Transacties
+                        </button>
+                        <button
+                          className="btn btn-xs btn-outline"
+                          onClick={() => setEditingGoal(goal)}
+                        >
+                          ✏️ Bewerken
                         </button>
                         {goal.sourceUrl && (
                           <a

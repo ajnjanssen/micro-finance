@@ -117,11 +117,6 @@ export class BudgetService {
       return expense.budgetType;
     }
 
-    // Force groceries to wants (user preference)
-    if (this.categoryService.isGroceryItem(expense.name)) {
-      return BUDGET_TYPES.WANTS;
-    }
-
     // Use category-based classification
     return this.categoryService.getBudgetType(expense.category);
   }
@@ -181,16 +176,6 @@ export class BudgetService {
     for (const expense of configuredExpenses) {
       if (!this.isExpenseActiveInMonth(expense, monthEndDate)) continue;
 
-      // Force groceries to wants
-      if (this.categoryService.isGroceryItem(expense.name)) {
-        wants.push({
-          name: expense.name,
-          amount: this.convertToMonthly(expense.amount, expense.frequency),
-          category: expense.category,
-        });
-        continue;
-      }
-
       const budgetType = this.categorizeExpense(expense);
       const monthlyAmount = this.convertToMonthly(
         expense.amount,
@@ -229,17 +214,24 @@ export class BudgetService {
         category: transaction.category || "Onbekend",
       };
 
+      // If transaction has explicit budgetType, use that
+      if ((transaction as any).budgetType) {
+        const budgetType = (transaction as any).budgetType;
+        if (budgetType === BUDGET_TYPES.NEEDS) {
+          needs.push(item);
+        } else if (budgetType === BUDGET_TYPES.WANTS) {
+          wants.push(item);
+        } else {
+          savings.push(item);
+        }
+      }
       // Check if savings-related by category
-      if (
+      else if (
         category.includes("spar") ||
         category.includes("saving") ||
         category.includes("besparing")
       ) {
         savings.push(item);
-      }
-      // Force groceries to wants
-      else if (this.categoryService.isGroceryItem(transaction.description)) {
-        wants.push(item);
       }
       // Use category-based classification
       else {
@@ -254,8 +246,8 @@ export class BudgetService {
       }
     }
 
-    // Add savings goals
-    const goalItems = savingsGoals
+    // Add savings goals - categorize based on budgetType
+    const goalsByType = savingsGoals
       .filter(
         (goal: any) => goal.monthlyContribution && goal.monthlyContribution > 0
       )
@@ -263,9 +255,25 @@ export class BudgetService {
         name: goal.name,
         amount: goal.monthlyContribution,
         category: "Spaardoel",
+        budgetType: goal.budgetType || "savings", // Default to savings if not set
       }));
 
-    savings.push(...goalItems);
+    // Distribute goals to appropriate buckets based on budgetType
+    for (const goal of goalsByType) {
+      const item = {
+        name: goal.name,
+        amount: goal.amount,
+        category: goal.category,
+      };
+
+      if (goal.budgetType === "needs") {
+        needs.push(item);
+      } else if (goal.budgetType === "wants") {
+        wants.push(item);
+      } else {
+        savings.push(item);
+      }
+    }
 
     // Calculate totals
     const needsTotal = needs.reduce((sum, item) => sum + item.amount, 0);

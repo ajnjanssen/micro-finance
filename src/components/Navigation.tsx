@@ -41,14 +41,15 @@ export default function Navigation() {
 
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
+    { href: "/advies", label: "Advies", icon: "💡" },
     { href: "/rekeningen", label: "Rekeningen", icon: "🏦" },
     { href: "/transactions", label: "Transacties", icon: "💰" },
     {
       href: "/budget",
       label: "Budget & Planning",
-      icon: "💡",
+      icon: "�",
       children: [
-        { href: "/budget", label: "Budget Overzicht", icon: "💡" },
+        { href: "/budget", label: "Budget Overzicht", icon: "�" },
         { href: "/spaardoelen", label: "Spaardoelen", icon: "🎯" },
       ],
     },

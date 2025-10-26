@@ -113,7 +113,7 @@ export default function TransactionForm({
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Type & Amount */}
         <div className="grid grid-cols-2 gap-4">
-          <div>
+          <div className="flex flex-col">
             <label className="label-text">Type</label>
             <Select
               name="type"

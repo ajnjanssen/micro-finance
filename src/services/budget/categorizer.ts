@@ -25,11 +25,6 @@ export class ExpenseCategorizer {
       return expense.budgetType;
     }
 
-    // Force groceries to wants (user preference)
-    if (this.categoryService.isGroceryItem(expense.name)) {
-      return BUDGET_TYPES.WANTS;
-    }
-
     // Use category-based classification
     return this.categoryService.getBudgetType(expense.category);
   }

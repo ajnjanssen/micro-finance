@@ -66,6 +66,81 @@ export async function POST(request: NextRequest) {
     goals.push(newGoal);
 
     await saveGoals({ goals, lastUpdated: new Date().toISOString() });
+
+    // Create recurring transfer transaction if monthlyContribution is set and accounts are specified
+    if (
+      newGoal.monthlyContribution &&
+      newGoal.monthlyContribution > 0 &&
+      newGoal.fromAccountId &&
+      newGoal.toAccountId
+    ) {
+      const financialDataPath = path.join(
+        process.cwd(),
+        "data",
+        "financial-data.json"
+      );
+      const financialData = JSON.parse(
+        await fs.readFile(financialDataPath, "utf-8")
+      );
+
+      // Verify accounts exist
+      const fromAccount = financialData.accounts.find(
+        (a: any) => a.id === newGoal.fromAccountId
+      );
+      const toAccount = financialData.accounts.find(
+        (a: any) => a.id === newGoal.toAccountId
+      );
+
+      if (fromAccount && toAccount) {
+        const transferId = `transfer-${Date.now()}`;
+        const timestamp = Date.now();
+
+        // Create outgoing transfer (from source account)
+        const outgoingTransfer = {
+          description: `Sparen: ${newGoal.name}`,
+          amount: -newGoal.monthlyContribution, // Negative = money leaving
+          type: "transfer",
+          category: "transfer",
+          accountId: fromAccount.id,
+          toAccountId: toAccount.id,
+          date: new Date().toISOString().split("T")[0],
+          isRecurring: true,
+          recurringType: "monthly",
+          tags: ["savings", "transfer"],
+          categoryReason: `Maandelijkse bijdrage aan spaardoel: ${newGoal.name}`,
+          completed: false,
+          savingsGoalId: newGoal.id,
+          transferId: transferId,
+          id: `tx-${timestamp}-out`,
+        };
+
+        // Create incoming transfer (to destination account)
+        const incomingTransfer = {
+          description: `Sparen: ${newGoal.name}`,
+          amount: newGoal.monthlyContribution, // Positive = money arriving
+          type: "transfer",
+          category: "transfer",
+          accountId: toAccount.id,
+          fromAccountId: fromAccount.id,
+          date: new Date().toISOString().split("T")[0],
+          isRecurring: true,
+          recurringType: "monthly",
+          tags: ["savings", "transfer"],
+          categoryReason: `Maandelijkse bijdrage aan spaardoel: ${newGoal.name}`,
+          completed: false,
+          savingsGoalId: newGoal.id,
+          transferId: transferId,
+          id: `tx-${timestamp}-in`,
+        };
+
+        financialData.transactions.push(outgoingTransfer, incomingTransfer);
+        await fs.writeFile(
+          financialDataPath,
+          JSON.stringify(financialData, null, 2)
+        );
+      }
+    }
+
     return NextResponse.json(newGoal);
   } catch (error) {
     console.error("Error saving savings goal:", error);
