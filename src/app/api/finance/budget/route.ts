@@ -53,6 +53,22 @@ export async function GET(request: NextRequest) {
     const spentByCategory =
       transactionService.aggregateByCategory(monthExpenses);
 
+    // Load budget mappings and user categories to check which are actually mapped
+    const budgetMappings = configData.budgetCategoryMappings || {};
+
+    // Flatten the array values to get all mapped category IDs
+    const mappedCategoryIds = new Set(
+      Object.values(budgetMappings)
+        .flat()
+        .filter((id): id is string => typeof id === "string")
+    );
+
+    // Load user categories
+    const userCategories = data.categories || [];
+    const userCategoryMap = new Map(
+      userCategories.map((cat) => [cat.id, cat.name])
+    );
+
     // Track unmapped categories with examples for smart suggestions
     const unmappedCategories = new Map<
       string,
@@ -60,11 +76,19 @@ export async function GET(request: NextRequest) {
     >();
 
     monthExpenses.forEach((t) => {
-      const normalized = categoryService.normalizeCategory(t.category);
+      // Find the user category for this transaction
+      const userCategory = userCategories.find(
+        (cat) => cat.name === t.category || cat.id === t.category
+      );
+      const categoryId = userCategory?.id;
 
-      // Track unmapped categories
-      if (categoryService.isUnmappedCategory(t.category)) {
-        const existing = unmappedCategories.get(t.category) || {
+      // Check if this category is mapped to a budget category
+      const isMapped = categoryId && mappedCategoryIds.has(categoryId);
+
+      // Track unmapped categories (those without budget mappings)
+      if (!isMapped && t.category) {
+        const categoryName = userCategory?.name || t.category;
+        const existing = unmappedCategories.get(categoryName) || {
           count: 0,
           totalAmount: 0,
           examples: [],
@@ -74,7 +98,7 @@ export async function GET(request: NextRequest) {
         if (existing.examples.length < 3) {
           existing.examples.push(t.description);
         }
-        unmappedCategories.set(t.category, existing);
+        unmappedCategories.set(categoryName, existing);
       }
     });
 

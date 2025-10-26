@@ -22,7 +22,7 @@ export default function TransactionFormCard({
   return (
     <Modal
       title={editingTransaction ? "Bewerk Transactie" : "Nieuwe Transactie"}
-      maxWidth="modal-box max-w-2xl"
+      maxWidth="max-w-2xl"
       onClose={onCancel}
     >
       <TransactionForm

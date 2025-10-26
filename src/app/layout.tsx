@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="nl" data-theme="abyss">
+    <html lang="nl" data-theme="sunset">
       <body className={`${poppins.variable} antialiased bg-base-100`}>
         <ToastProvider>
           <div className="sticky top-0 z-50 bg-base-100 shadow-sm">

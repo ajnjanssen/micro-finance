@@ -1553,7 +1553,7 @@ function ConfigurationTab() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold">{source.name}</h3>
                       {!source.isActive && (
-                        <span className="badge badge-sm">Inactief</span>
+                        <span className="badge ">Inactief</span>
                       )}
                     </div>
                     <p className="text-sm text-base-content/70">
@@ -1666,17 +1666,13 @@ function ConfigurationTab() {
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{expense.name}</h3>
                         {expense.isEssential && (
-                          <span className="badge badge-sm badge-error">
-                            Essentieel
-                          </span>
+                          <span className="badge  badge-error">Essentieel</span>
                         )}
                         {expense.isVariable && (
-                          <span className="badge badge-sm badge-warning">
-                            Variabel
-                          </span>
+                          <span className="badge  badge-warning">Variabel</span>
                         )}
                         {!expense.isActive && (
-                          <span className="badge badge-sm">Inactief</span>
+                          <span className="badge ">Inactief</span>
                         )}
                       </div>
                       <p className="text-sm text-base-content/70">
@@ -1734,10 +1730,10 @@ function ConfigurationTab() {
                           <h3 className="font-semibold">
                             {transaction.description}
                           </h3>
-                          <span className="badge badge-sm badge-info">
+                          <span className="badge  badge-info">
                             Van Transacties
                           </span>
-                          <span className="badge badge-sm">
+                          <span className="badge ">
                             {transaction.recurringType === "monthly"
                               ? "Maandelijks"
                               : transaction.recurringType}

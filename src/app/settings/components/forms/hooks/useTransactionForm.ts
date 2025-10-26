@@ -4,7 +4,7 @@ import { Transaction } from "@/types/finance";
 interface FormData {
   description: string;
   amount: number;
-  type: "income" | "expense";
+  type: "income" | "expense" | "transfer";
   category: string;
   accountId: string;
   date: string;
@@ -41,7 +41,10 @@ export function useTransactionForm(
       ...formData,
       amount: parseFloat(formData.amount.toString()),
       tags: formData.tags
-        ? formData.tags.split(",").map((tag) => tag.trim()).filter((tag) => tag)
+        ? formData.tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter((tag) => tag)
         : [],
     };
 
