@@ -354,16 +354,30 @@ export class ProjectionEngine {
         }
       }
 
+      // Add planned one-time income transactions for this month
+      const oneTimeIncomeTransactions = data.transactions.filter(
+        (transaction) =>
+          transaction.type === "income" &&
+          !transaction.isRecurring &&
+          transaction.completed === false,
+      );
+      for (const transaction of oneTimeIncomeTransactions) {
+        if (transaction.date.slice(0, 7) === monthStr) {
+          incomeBreakdown.push({
+            source: transaction.description,
+            amount: Math.abs(transaction.amount),
+            accountId: transaction.accountId,
+          });
+          configuredIncome += Math.abs(transaction.amount);
+        }
+      }
+
       // Add ONE-TIME expense transactions for this month
       const oneTimeExpenses = data.transactions.filter(
-        (t) => t.type === "expense" && !t.isRecurring && !t.completed,
+        (t) => t.type === "expense" && !t.isRecurring && t.completed === false,
       );
       for (const transaction of oneTimeExpenses) {
-        const txDate = new Date(transaction.date);
-        if (
-          txDate.getFullYear() === targetDate.getFullYear() &&
-          txDate.getMonth() === targetDate.getMonth()
-        ) {
+        if (transaction.date.slice(0, 7) === monthStr) {
           const amount = Math.abs(transaction.amount);
           expenseBreakdown.push({
             name: transaction.description,
