@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
+import SignOutButton from "./SignOutButton";
 
 interface NavItem {
   href: string;
@@ -21,6 +22,14 @@ export default function Navigation() {
   });
 
   useEffect(() => {
+    if (
+      pathname === "/login" ||
+      pathname === "/storage-not-ready" ||
+      pathname.startsWith("/auth/callback")
+    ) {
+      return;
+    }
+
     async function fetchCounts() {
       try {
         const response = await fetch("/api/finance");
@@ -37,7 +46,15 @@ export default function Navigation() {
       }
     }
     fetchCounts();
-  }, []);
+  }, [pathname]);
+
+  if (
+    pathname === "/login" ||
+    pathname === "/storage-not-ready" ||
+    pathname.startsWith("/auth/callback")
+  ) {
+    return null;
+  }
 
   const navItems: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
@@ -155,8 +172,11 @@ export default function Navigation() {
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-base-300 text-xs text-base-content/60">
-        <p> 2025 Micro Finance</p>
+      <div className="border-t border-base-300">
+        <SignOutButton />
+        <div className="px-4 pb-4 text-xs text-base-content/60">
+          <p>2025 Micro Finance</p>
+        </div>
       </div>
     </aside>
   );
