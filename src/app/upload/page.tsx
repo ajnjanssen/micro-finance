@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/ui/foundation/Header";
 import Card from "@/ui/foundation/Card";
-import Navigation from "@/components/Navigation";
 
 export default function UploadPage() {
   const [clearing, setClearing] = useState(false);
@@ -14,7 +13,7 @@ export default function UploadPage() {
   const handleResetToOnboarding = async () => {
     if (
       !confirm(
-        "⚠️ This will DELETE ALL your data (accounts, transactions, configuration) and restart the onboarding wizard. This cannot be undone! Are you sure?"
+        "⚠️ This will DELETE ALL your data (accounts, transactions, configuration) and restart the onboarding wizard. This cannot be undone! Are you sure?",
       )
     ) {
       return;
@@ -68,22 +67,6 @@ export default function UploadPage() {
             </div>
           </div>
         </header>
-
-        <Navigation
-          activeTab="upload"
-          onTabChange={(tabId) => {
-            if (tabId === "upload") {
-              // Already on upload page
-              return;
-            }
-            if (tabId === "settings") {
-              window.location.href = "/settings";
-            } else {
-              // Navigate to main page with the selected tab
-              window.location.href = `/?tab=${tabId}`;
-            }
-          }}
-        />
       </div>
 
       <div className="max-w-2xl mx-auto p-6 space-y-6">
@@ -113,6 +96,7 @@ export default function UploadPage() {
               </div>
 
               <button
+                type="button"
                 onClick={handleResetToOnboarding}
                 disabled={clearing}
                 className="btn btn-outline btn-error w-full"
