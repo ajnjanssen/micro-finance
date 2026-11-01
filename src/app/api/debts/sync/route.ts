@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { AssetsLiabilitiesService } from "@/services/assets-liabilities-service";
-import fs from "fs/promises";
-import path from "path";
+import { FinancialDataService } from "@/services/financial-data";
+import { insertUserCategory } from "@/services/supabase-financial-store";
 
 /**
  * Sync debts to recurring expenses and ensure category exists
@@ -11,28 +11,18 @@ export async function POST() {
     const assetsService = AssetsLiabilitiesService.getInstance();
 
     // Ensure "Schulden" category exists
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
+    const financialData = await FinancialDataService.getInstance().loadData();
     const debtCategory = financialData.categories.find(
-      (c: any) => c.id === "cat-debt-payments"
+      (category) => category.id === "cat-debt-payments",
     );
 
     if (!debtCategory) {
-      // Create the category
-      financialData.categories.push({
+      await insertUserCategory({
         id: "cat-debt-payments",
         name: "Schulden",
         type: "expense",
         color: "error",
       });
-      financialData.lastUpdated = new Date().toISOString();
-      await fs.writeFile(
-        dataPath,
-        JSON.stringify(financialData, null, 2),
-        "utf-8"
-      );
     }
 
     // Sync debts to recurring expenses
@@ -46,7 +36,7 @@ export async function POST() {
     console.error("Error syncing debts:", error);
     return NextResponse.json(
       { error: "Failed to sync debts" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

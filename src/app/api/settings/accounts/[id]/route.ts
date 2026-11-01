@@ -1,103 +1,66 @@
-import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { type NextRequest, NextResponse } from "next/server";
 import { addActivityLog } from "@/services/activity-log-service";
+import { FinancialDataService } from "@/services/financial-data";
+import { deleteUserAccount } from "@/services/supabase-financial-store";
+import type { Account } from "@/types/finance";
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function PUT(request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const accountId = id;
-    const updatedAccount = await request.json();
-
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
-    const accountIndex = financialData.accounts.findIndex(
-      (acc: any) => acc.id === accountId
+    const updates = (await request.json()) as Partial<Account>;
+    const account = await FinancialDataService.getInstance().updateAccount(
+      id,
+      updates,
     );
-    if (accountIndex === -1) {
+    if (!account) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
-    financialData.accounts[accountIndex] = updatedAccount;
-    financialData.lastUpdated = new Date().toISOString();
-
-    await fs.writeFile(
-      dataPath,
-      JSON.stringify(financialData, null, 2),
-      "utf-8"
-    );
-
-    // Log the activity
     await addActivityLog("update", "account", {
-      entityId: updatedAccount.id,
-      entityName: updatedAccount.name,
-      description: `Rekening bijgewerkt: ${updatedAccount.name}`,
-      metadata: {
-        type: updatedAccount.type,
-      },
+      entityId: account.id,
+      entityName: account.name,
+      description: `Rekening bijgewerkt: ${account.name}`,
+      metadata: { type: account.type },
     });
-
-    return NextResponse.json(updatedAccount);
+    return NextResponse.json(account);
   } catch (error) {
     console.error("Error updating account:", error);
     return NextResponse.json(
       { error: "Failed to update account" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const accountId = id;
-
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
-    const accountIndex = financialData.accounts.findIndex(
-      (acc: any) => acc.id === accountId
-    );
-    if (accountIndex === -1) {
+    const service = FinancialDataService.getInstance();
+    const data = await service.loadData();
+    const account = data.accounts.find((item) => item.id === id);
+    if (!account) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 });
     }
 
-    const deletedAccount = financialData.accounts[accountIndex];
+    const deleted = await deleteUserAccount(id);
+    if (!deleted) {
+      return NextResponse.json({ error: "Account not found" }, { status: 404 });
+    }
 
-    financialData.accounts.splice(accountIndex, 1);
-    financialData.lastUpdated = new Date().toISOString();
-
-    await fs.writeFile(
-      dataPath,
-      JSON.stringify(financialData, null, 2),
-      "utf-8"
-    );
-
-    // Log the activity
     await addActivityLog("delete", "account", {
-      entityId: deletedAccount.id,
-      entityName: deletedAccount.name,
-      description: `Rekening verwijderd: ${deletedAccount.name}`,
-      metadata: {
-        type: deletedAccount.type,
-      },
+      entityId: account.id,
+      entityName: account.name,
+      description: `Rekening verwijderd: ${account.name}`,
+      metadata: { type: account.type },
     });
-
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting account:", error);
     return NextResponse.json(
-      { error: "Failed to delete account" },
-      { status: 500 }
+      { error: "Failed to delete account; it may still be in use" },
+      { status: 409 },
     );
   }
 }

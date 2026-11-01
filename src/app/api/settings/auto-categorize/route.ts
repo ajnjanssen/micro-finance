@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { type NextRequest, NextResponse } from "next/server";
 import { addActivityLog } from "@/services/activity-log-service";
+import { FinancialDataService } from "@/services/financial-data";
 
 // Keyword patterns for auto-categorization
 const categoryPatterns: { [key: string]: string[] } = {
@@ -250,11 +249,10 @@ function findCategory(description: string, amount: number): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { dryRun = false } = await request.json();
-
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
+    const body = await request.json();
+    const dryRun = body.dryRun === true;
+    const service = FinancialDataService.getInstance();
+    const financialData = await service.loadData();
 
     let categorizedCount = 0;
     let skippedCount = 0;
@@ -264,14 +262,15 @@ export async function POST(request: NextRequest) {
       oldCategory: string;
       newCategory: string;
       amount: number;
+      confidence: number;
     }> = [];
 
     // Process each transaction
-    financialData.transactions = financialData.transactions.map((tx: any) => {
+    for (const tx of financialData.transactions) {
       // Only auto-categorize uncategorized transactions
       if (tx.category !== "uncategorized" && tx.category) {
         skippedCount++;
-        return tx;
+        continue;
       }
 
       const suggestedCategory = findCategory(tx.description, tx.amount);
@@ -304,30 +303,20 @@ export async function POST(request: NextRequest) {
         oldCategory: tx.category || "uncategorized",
         newCategory: suggestedCategory,
         amount: tx.amount,
+        confidence,
       });
 
       if (!dryRun) {
-        return {
-          ...tx,
+        const updated = await service.updateTransaction(tx.id, {
           category: suggestedCategory,
-          autoCategorizationConfidence: confidence,
-          categorizationReason: reason,
-          manuallyReviewed: false,
-        };
+          categoryReason: reason,
+        });
+        if (!updated) throw new Error(`Transaction ${tx.id} was not found.`);
       }
-
-      return tx;
-    });
+    }
 
     // Save if not a dry run
     if (!dryRun) {
-      financialData.lastUpdated = new Date().toISOString();
-      await fs.writeFile(
-        dataPath,
-        JSON.stringify(financialData, null, 2),
-        "utf-8"
-      );
-
       // Log the activity
       await addActivityLog("update", "transaction", {
         entityId: "bulk-auto-categorize",
@@ -347,19 +336,17 @@ export async function POST(request: NextRequest) {
       dryRun,
       results: categorizationResults.slice(0, 30), // Return first 30 as preview
       highConfidence: categorizationResults.filter((r) => {
-        const amount = Math.abs(r.amount);
-        return amount >= 200 || categorizationResults.length > 0;
+        return r.confidence >= 70;
       }).length,
       lowConfidence: categorizationResults.filter((r) => {
-        const amount = Math.abs(r.amount);
-        return amount < 50;
+        return r.confidence < 70;
       }).length,
     });
   } catch (error) {
     console.error("Error auto-categorizing:", error);
     return NextResponse.json(
       { error: "Failed to auto-categorize transactions" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

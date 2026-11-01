@@ -1,51 +1,30 @@
-import { NextResponse, NextRequest } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { type NextRequest, NextResponse } from "next/server";
+import { FinancialDataService } from "@/services/financial-data";
 
 export async function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id: transactionId } = await context.params;
     const updates = await request.json();
 
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
-    // Find the transaction
-    const transactionIndex = financialData.transactions.findIndex(
-      (t: any) => t.id === transactionId
+    const updated = await FinancialDataService.getInstance().updateTransaction(
+      transactionId,
+      updates,
     );
-
-    if (transactionIndex === -1) {
+    if (!updated) {
       return NextResponse.json(
         { error: "Transaction not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
-
-    // Update the transaction
-    financialData.transactions[transactionIndex] = {
-      ...financialData.transactions[transactionIndex],
-      ...updates,
-    };
-
-    financialData.lastUpdated = new Date().toISOString();
-
-    await fs.writeFile(
-      dataPath,
-      JSON.stringify(financialData, null, 2),
-      "utf-8"
-    );
-
-    return NextResponse.json(financialData.transactions[transactionIndex]);
+    return NextResponse.json(updated);
   } catch (error) {
     console.error("Error updating transaction:", error);
     return NextResponse.json(
       { error: "Failed to update transaction" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

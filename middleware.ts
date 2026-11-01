@@ -1,5 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { getSupabaseEnv } from "./src/lib/supabase/env";
 
 export async function middleware(request: NextRequest) {
@@ -52,7 +52,10 @@ export async function middleware(request: NextRequest) {
   ) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
-        { error: "Financial data storage has not been migrated to Supabase." },
+        {
+          error:
+            "Supabase financial storage is not enabled for this deployment.",
+        },
         { status: 503 },
       );
     }

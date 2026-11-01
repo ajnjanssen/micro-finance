@@ -27,6 +27,7 @@ export interface Transaction {
   toAccountId?: string; // For transfers: destination account
   fromAccountId?: string; // For incoming transfer entries
   transferId?: string; // Links the two ledger entries for one transfer
+  savingsGoalId?: string;
 }
 
 export interface Category {

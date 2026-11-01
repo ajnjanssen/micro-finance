@@ -5,8 +5,6 @@
  * No detection, no guessing, just pure calculation.
  */
 
-import { promises as fs } from "fs";
-import path from "path";
 import type {
   FinancialConfiguration,
   IncomeSource,
@@ -25,17 +23,12 @@ import {
   isSavingsGoalActiveInMonth,
 } from "./recurring-expense-utils";
 import { getSavingsGoalCurrentAmount } from "./savings-goal-progress";
+import { listUserSavingsGoals } from "./supabase-savings-goal-store";
 
 export class ProjectionEngine {
   private configService: FinancialConfigService;
   private dataService: FinancialDataService;
   private categoryService: CategoryService;
-  private readonly GOALS_FILE = path.join(
-    process.cwd(),
-    "data",
-    "savings-goals.json",
-  );
-
   constructor() {
     this.configService = FinancialConfigService.getInstance();
     this.dataService = FinancialDataService.getInstance();
@@ -43,13 +36,7 @@ export class ProjectionEngine {
   }
 
   private async loadSavingsGoals() {
-    try {
-      const data = await fs.readFile(this.GOALS_FILE, "utf-8");
-      const parsed = JSON.parse(data);
-      return Array.isArray(parsed) ? { goals: parsed } : parsed;
-    } catch {
-      return { goals: [] };
-    }
+    return { goals: await listUserSavingsGoals() };
   }
 
   /**
@@ -82,6 +69,7 @@ export class ProjectionEngine {
     )?.id;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const goalsData = await this.loadSavingsGoals();
 
     console.log(`[ProjectionEngine] ========= STARTING PROJECTION =========`);
     console.log(
@@ -214,7 +202,6 @@ export class ProjectionEngine {
         }
       }
 
-      const goalsData = await this.loadSavingsGoals();
       const linkedGoalIds = new Set<string>();
       const goalMonth = monthStr;
 
@@ -310,7 +297,8 @@ export class ProjectionEngine {
         const remaining = goal.targetAmount - goalSavingsAccumulated[goal.id];
         if (remaining <= 0) continue;
 
-        const contribution = Math.min(goal.monthlyContribution, remaining);
+        const contribution = Math.min(goal.monthlyContribution ?? 0, remaining);
+        if (contribution <= 0) continue;
         const projectedGoalAmount =
           goalSavingsAccumulated[goal.id] + contribution;
         savingsBreakdown.push({

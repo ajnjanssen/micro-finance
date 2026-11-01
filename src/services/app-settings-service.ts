@@ -1,61 +1,53 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AppSettings } from "@/types/app-settings";
 import { DEFAULT_APP_SETTINGS } from "@/types/app-settings";
-
-const APP_SETTINGS_PATH = path.join(process.cwd(), "data", "app-settings.json");
 
 /**
  * Get application settings
  */
 export async function getAppSettings(): Promise<AppSettings> {
-  try {
-    const data = await fs.readFile(APP_SETTINGS_PATH, "utf-8");
-    const settings = JSON.parse(data) as AppSettings;
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("theme,typography,version")
+    .maybeSingle();
+  if (error) throw new Error(`Failed to load app settings: ${error.message}`);
+  if (!data) return DEFAULT_APP_SETTINGS;
 
-    // Merge with defaults to ensure all fields exist
-    return {
-      ...DEFAULT_APP_SETTINGS,
-      ...settings,
-      typography: {
-        ...DEFAULT_APP_SETTINGS.typography,
-        ...settings.typography,
-      },
-    };
-  } catch (error) {
-    console.error("Error reading app settings:", error);
-    // Return default settings if file doesn't exist
-    return DEFAULT_APP_SETTINGS;
-  }
+  return {
+    ...DEFAULT_APP_SETTINGS,
+    ...data,
+    typography: {
+      ...DEFAULT_APP_SETTINGS.typography,
+      ...(data.typography as Partial<AppSettings["typography"]>),
+    },
+  };
 }
 
 /**
  * Update application settings
  */
 export async function updateAppSettings(
-  settings: AppSettings
+  settings: AppSettings,
 ): Promise<AppSettings> {
-  try {
-    await fs.writeFile(APP_SETTINGS_PATH, JSON.stringify(settings, null, 2));
-    return settings;
-  } catch (error) {
-    console.error("Error writing app settings:", error);
-    throw new Error("Failed to save app settings");
-  }
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError) throw new Error(`Failed to verify user: ${authError.message}`);
+  if (!authData.user) throw new Error("Authentication required.");
+
+  const { error } = await supabase.from("app_settings").upsert({
+    user_id: authData.user.id,
+    theme: settings.theme,
+    typography: settings.typography,
+    version: settings.version,
+  });
+  if (error) throw new Error(`Failed to save app settings: ${error.message}`);
+  return settings;
 }
 
 /**
  * Initialize app settings file if it doesn't exist
  */
 export async function initializeAppSettings(): Promise<void> {
-  try {
-    await fs.access(APP_SETTINGS_PATH);
-  } catch {
-    // File doesn't exist, create it with defaults
-    await fs.writeFile(
-      APP_SETTINGS_PATH,
-      JSON.stringify(DEFAULT_APP_SETTINGS, null, 2)
-    );
-    console.log("Initialized app-settings.json with defaults");
-  }
+  await getAppSettings();
 }

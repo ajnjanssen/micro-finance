@@ -1,229 +1,71 @@
-import { promises as fs } from "fs";
 import { type NextRequest, NextResponse } from "next/server";
-import path from "path";
-import { SavingsGoal, type SavingsGoalsData } from "@/types/savings-goals";
+import { FinancialDataService } from "@/services/financial-data";
+import { deletePendingGoalTransfers } from "@/services/supabase-financial-store";
+import {
+  deleteUserSavingsGoal,
+  listUserSavingsGoals,
+  syncGoalTransfers,
+  updateUserSavingsGoal,
+} from "@/services/supabase-savings-goal-store";
+import type { SavingsGoal } from "@/types/savings-goals";
 
-const GOALS_FILE = path.join(process.cwd(), "data", "savings-goals.json");
+type RouteContext = { params: Promise<{ id: string }> };
 
-// Ensure data directory exists
-async function ensureDataDir() {
-  const dataDir = path.join(process.cwd(), "data");
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
-}
-
-// Load goals from file
-async function loadGoals(): Promise<SavingsGoalsData> {
-  try {
-    await ensureDataDir();
-    const data = await fs.readFile(GOALS_FILE, "utf-8");
-    const parsed = JSON.parse(data);
-    // Support both old and new formats
-    if (Array.isArray(parsed)) {
-      return { goals: parsed, lastUpdated: new Date().toISOString() };
-    }
-    return parsed;
-  } catch {
-    return { goals: [], lastUpdated: new Date().toISOString() };
-  }
-}
-
-// Save goals to file
-async function saveGoals(goalsData: SavingsGoalsData): Promise<void> {
-  await ensureDataDir();
-  await fs.writeFile(GOALS_FILE, JSON.stringify(goalsData, null, 2));
-}
-
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function PUT(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const updates = await request.json();
-
-    const goalsData = await loadGoals();
-    const goals = goalsData.goals;
-
-    const index = goals.findIndex((g) => g.id === id);
-    if (index === -1) {
+    const updates = (await request.json()) as Partial<SavingsGoal>;
+    if (
+      (updates.name !== undefined &&
+        (typeof updates.name !== "string" || !updates.name.trim())) ||
+      (updates.targetAmount !== undefined &&
+        (!Number.isFinite(updates.targetAmount) ||
+          updates.targetAmount <= 0)) ||
+      (updates.currentAmount !== undefined &&
+        (!Number.isFinite(updates.currentAmount) ||
+          updates.currentAmount < 0)) ||
+      (updates.monthlyContribution !== undefined &&
+        (!Number.isFinite(updates.monthlyContribution) ||
+          updates.monthlyContribution < 0)) ||
+      (updates.priority !== undefined &&
+        !["low", "medium", "high"].includes(updates.priority))
+    ) {
+      return NextResponse.json(
+        { error: "Invalid savings goal values" },
+        { status: 400 },
+      );
+    }
+    const {
+      id: _ignoredId,
+      createdAt: _ignoredCreatedAt,
+      updatedAt: _ignoredUpdatedAt,
+      ...safeUpdates
+    } = updates;
+    const goals = await listUserSavingsGoals();
+    const oldGoal = goals.find((goal) => goal.id === id);
+    if (!oldGoal) {
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
 
-    const oldGoal = goals[index];
-    const updatedGoal = {
-      ...oldGoal,
-      ...updates,
-      id, // Ensure ID doesn't change
-      updatedAt: new Date().toISOString(),
-    };
-
-    goals[index] = updatedGoal;
-    await saveGoals({ goals, lastUpdated: new Date().toISOString() });
-
-    // Remove pending scheduled transfers when a contribution is stopped.
-    if (
-      updatedGoal.monthlyContribution === 0 &&
-      updatedGoal.fromAccountId &&
-      updatedGoal.toAccountId
-    ) {
-      const financialDataPath = path.join(
-        process.cwd(),
-        "data",
-        "financial-data.json",
-      );
-      const financialData = JSON.parse(
-        await fs.readFile(financialDataPath, "utf-8"),
-      );
-      financialData.transactions = financialData.transactions.filter(
-        (transaction: any) =>
-          transaction.savingsGoalId !== id ||
-          transaction.type !== "transfer" ||
-          transaction.completed !== false,
-      );
-      await fs.writeFile(
-        financialDataPath,
-        JSON.stringify(financialData, null, 2),
-      );
+    const updatedGoal = await updateUserSavingsGoal(id, {
+      ...safeUpdates,
+      ...(safeUpdates.name !== undefined
+        ? { name: safeUpdates.name.trim() }
+        : {}),
+    });
+    if (!updatedGoal) {
+      return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
 
-    // Handle transfer transaction updates if accounts or contribution changed
-    if (
-      updatedGoal.monthlyContribution &&
-      updatedGoal.monthlyContribution > 0 &&
-      updatedGoal.fromAccountId &&
-      updatedGoal.toAccountId
-    ) {
-      const financialDataPath = path.join(
-        process.cwd(),
-        "data",
-        "financial-data.json",
-      );
-      const financialData = JSON.parse(
-        await fs.readFile(financialDataPath, "utf-8"),
-      );
-
-      // Find existing transfer transactions for this goal
-      const existingTransfers = financialData.transactions.filter(
-        (t: any) => t.savingsGoalId === id && t.type === "transfer",
-      );
-
-      // Check if accounts or amount changed
-      const accountsChanged =
-        oldGoal.fromAccountId !== updatedGoal.fromAccountId ||
-        oldGoal.toAccountId !== updatedGoal.toAccountId;
-      const amountChanged =
-        oldGoal.monthlyContribution !== updatedGoal.monthlyContribution;
-      const startDateChanged = oldGoal.startDate !== updatedGoal.startDate;
-      const nameChanged = oldGoal.name !== updatedGoal.name;
-
-      if (
-        existingTransfers.length > 0 &&
-        (accountsChanged || amountChanged || startDateChanged || nameChanged)
-      ) {
-        // Keep completed ledger entries; only replace the pending schedule.
-        financialData.transactions = financialData.transactions.filter(
-          (t: any) =>
-            t.savingsGoalId !== id ||
-            t.type !== "transfer" ||
-            t.completed !== false,
-        );
-
-        // Create new transfers with updated info
-        const transferId = `transfer-${Date.now()}`;
-        const timestamp = Date.now();
-
-        const outgoingTransfer = {
-          description: `Sparen: ${updatedGoal.name}`,
-          amount: -updatedGoal.monthlyContribution,
-          type: "transfer",
-          category: "transfer",
-          accountId: updatedGoal.fromAccountId,
-          toAccountId: updatedGoal.toAccountId,
-          date: updatedGoal.startDate || new Date().toISOString().split("T")[0],
-          isRecurring: true,
-          recurringType: "monthly",
-          tags: ["savings", "transfer"],
-          categoryReason: `Maandelijkse bijdrage aan spaardoel: ${updatedGoal.name}`,
-          completed: false,
-          savingsGoalId: updatedGoal.id,
-          transferId: transferId,
-          id: `tx-${timestamp}-out`,
-        };
-
-        const incomingTransfer = {
-          description: `Sparen: ${updatedGoal.name}`,
-          amount: updatedGoal.monthlyContribution,
-          type: "transfer",
-          category: "transfer",
-          accountId: updatedGoal.toAccountId,
-          fromAccountId: updatedGoal.fromAccountId,
-          date: updatedGoal.startDate || new Date().toISOString().split("T")[0],
-          isRecurring: true,
-          recurringType: "monthly",
-          tags: ["savings", "transfer"],
-          categoryReason: `Maandelijkse bijdrage aan spaardoel: ${updatedGoal.name}`,
-          completed: false,
-          savingsGoalId: updatedGoal.id,
-          transferId: transferId,
-          id: `tx-${timestamp}-in`,
-        };
-
-        financialData.transactions.push(outgoingTransfer, incomingTransfer);
-        await fs.writeFile(
-          financialDataPath,
-          JSON.stringify(financialData, null, 2),
-        );
-      } else if (existingTransfers.length === 0) {
-        // No existing transfers, create new ones
-        const transferId = `transfer-${Date.now()}`;
-        const timestamp = Date.now();
-
-        const outgoingTransfer = {
-          description: `Sparen: ${updatedGoal.name}`,
-          amount: -updatedGoal.monthlyContribution,
-          type: "transfer",
-          category: "transfer",
-          accountId: updatedGoal.fromAccountId,
-          toAccountId: updatedGoal.toAccountId,
-          date: updatedGoal.startDate || new Date().toISOString().split("T")[0],
-          isRecurring: true,
-          recurringType: "monthly",
-          tags: ["savings", "transfer"],
-          categoryReason: `Maandelijkse bijdrage aan spaardoel: ${updatedGoal.name}`,
-          completed: false,
-          savingsGoalId: updatedGoal.id,
-          transferId: transferId,
-          id: `tx-${timestamp}-out`,
-        };
-
-        const incomingTransfer = {
-          description: `Sparen: ${updatedGoal.name}`,
-          amount: updatedGoal.monthlyContribution,
-          type: "transfer",
-          category: "transfer",
-          accountId: updatedGoal.toAccountId,
-          fromAccountId: updatedGoal.fromAccountId,
-          date: updatedGoal.startDate || new Date().toISOString().split("T")[0],
-          isRecurring: true,
-          recurringType: "monthly",
-          tags: ["savings", "transfer"],
-          categoryReason: `Maandelijkse bijdrage aan spaardoel: ${updatedGoal.name}`,
-          completed: false,
-          savingsGoalId: updatedGoal.id,
-          transferId: transferId,
-          id: `tx-${timestamp}-in`,
-        };
-
-        financialData.transactions.push(outgoingTransfer, incomingTransfer);
-        await fs.writeFile(
-          financialDataPath,
-          JSON.stringify(financialData, null, 2),
-        );
-      }
+    const transfersChanged =
+      oldGoal.name !== updatedGoal.name ||
+      oldGoal.monthlyContribution !== updatedGoal.monthlyContribution ||
+      oldGoal.fromAccountId !== updatedGoal.fromAccountId ||
+      oldGoal.toAccountId !== updatedGoal.toAccountId ||
+      oldGoal.startDate !== updatedGoal.startDate;
+    if (transfersChanged) {
+      const data = await FinancialDataService.getInstance().loadData();
+      await syncGoalTransfers(updatedGoal, data.accounts);
     }
 
     return NextResponse.json(updatedGoal);
@@ -236,26 +78,17 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
-
-    const goalsData = await loadGoals();
-    const goals = goalsData.goals;
-
-    const filteredGoals = goals.filter((g) => g.id !== id);
-
-    if (filteredGoals.length === goals.length) {
+    const goals = await listUserSavingsGoals();
+    if (!goals.some((goal) => goal.id === id)) {
       return NextResponse.json({ error: "Goal not found" }, { status: 404 });
     }
-
-    await saveGoals({
-      goals: filteredGoals,
-      lastUpdated: new Date().toISOString(),
-    });
+    await deletePendingGoalTransfers(id);
+    if (!(await deleteUserSavingsGoal(id))) {
+      return NextResponse.json({ error: "Goal not found" }, { status: 404 });
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting savings goal:", error);

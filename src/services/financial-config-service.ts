@@ -5,25 +5,22 @@
  * This is the source of truth for projections.
  */
 
-import fs from "node:fs/promises";
-import path from "node:path";
 import type {
   FinancialConfiguration,
   IncomeSource,
-  RecurringExpense,
   OneTimeExpense,
+  RecurringExpense,
   SavingsGoal,
   StartingBalance,
 } from "@/types/financial-config";
 import { generateId } from "@/types/financial-config";
+import {
+  loadUserFinancialConfig,
+  saveUserFinancialConfig,
+} from "./supabase-config-store";
 
 export class FinancialConfigService {
   private static instance: FinancialConfigService;
-  private configPath: string;
-
-  private constructor() {
-    this.configPath = path.join(process.cwd(), "data", "financial-config.json");
-  }
 
   static getInstance(): FinancialConfigService {
     if (!FinancialConfigService.instance) {
@@ -33,24 +30,18 @@ export class FinancialConfigService {
   }
 
   /**
-   * Load configuration from file
+   * Load configuration from the authenticated user's Supabase records.
    */
   async loadConfig(): Promise<FinancialConfiguration> {
-    try {
-      const data = await fs.readFile(this.configPath, "utf-8");
-      return JSON.parse(data);
-    } catch (error) {
-      // If file doesn't exist, return default config
-      return this.getDefaultConfig();
-    }
+    return loadUserFinancialConfig();
   }
 
   /**
-   * Save configuration to file
+   * Save configuration to the authenticated user's Supabase records.
    */
   async saveConfig(config: FinancialConfiguration): Promise<void> {
     config.lastUpdated = new Date().toISOString();
-    await fs.writeFile(this.configPath, JSON.stringify(config, null, 2));
+    await saveUserFinancialConfig(config);
   }
 
   /**
@@ -93,7 +84,7 @@ export class FinancialConfigService {
   // ============= INCOME SOURCES =============
 
   async addIncomeSource(
-    source: Omit<IncomeSource, "id">
+    source: Omit<IncomeSource, "id">,
   ): Promise<IncomeSource> {
     const config = await this.loadConfig();
     const newSource: IncomeSource = {
@@ -107,7 +98,7 @@ export class FinancialConfigService {
 
   async updateIncomeSource(
     id: string,
-    updates: Partial<IncomeSource>
+    updates: Partial<IncomeSource>,
   ): Promise<void> {
     const config = await this.loadConfig();
     const index = config.incomeSources.findIndex((s) => s.id === id);
@@ -136,7 +127,7 @@ export class FinancialConfigService {
   // ============= RECURRING EXPENSES =============
 
   async addRecurringExpense(
-    expense: Omit<RecurringExpense, "id">
+    expense: Omit<RecurringExpense, "id">,
   ): Promise<RecurringExpense> {
     const config = await this.loadConfig();
     const newExpense: RecurringExpense = {
@@ -150,7 +141,7 @@ export class FinancialConfigService {
 
   async updateRecurringExpense(
     id: string,
-    updates: Partial<RecurringExpense>
+    updates: Partial<RecurringExpense>,
   ): Promise<void> {
     const config = await this.loadConfig();
     const index = config.recurringExpenses.findIndex((e) => e.id === id);
@@ -166,7 +157,7 @@ export class FinancialConfigService {
   async deleteRecurringExpense(id: string): Promise<void> {
     const config = await this.loadConfig();
     config.recurringExpenses = config.recurringExpenses.filter(
-      (e) => e.id !== id
+      (e) => e.id !== id,
     );
     await this.saveConfig(config);
   }
@@ -181,7 +172,7 @@ export class FinancialConfigService {
   // ============= ONE-TIME EXPENSES =============
 
   async addOneTimeExpense(
-    expense: Omit<OneTimeExpense, "id">
+    expense: Omit<OneTimeExpense, "id">,
   ): Promise<OneTimeExpense> {
     const config = await this.loadConfig();
     const newExpense: OneTimeExpense = {
@@ -195,7 +186,7 @@ export class FinancialConfigService {
 
   async updateOneTimeExpense(
     id: string,
-    updates: Partial<OneTimeExpense>
+    updates: Partial<OneTimeExpense>,
   ): Promise<void> {
     const config = await this.loadConfig();
     const index = config.oneTimeExpenses.findIndex((e) => e.id === id);
@@ -236,7 +227,7 @@ export class FinancialConfigService {
 
   async updateSavingsGoal(
     id: string,
-    updates: Partial<SavingsGoal>
+    updates: Partial<SavingsGoal>,
   ): Promise<void> {
     const config = await this.loadConfig();
     const index = config.savingsGoals.findIndex((g) => g.id === id);

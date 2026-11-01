@@ -1,16 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { FinancialDataService } from "@/services/financial-data";
+import { type NextRequest, NextResponse } from "next/server";
+import { AssetsLiabilitiesService } from "@/services/assets-liabilities-service";
 import { BudgetService } from "@/services/budget-service";
 import { CategoryService } from "@/services/category-service";
+import { FinancialConfigService } from "@/services/financial-config-service";
+import { FinancialDataService } from "@/services/financial-data";
 import { TransactionService } from "@/services/transaction-service";
-import { AssetsLiabilitiesService } from "@/services/assets-liabilities-service";
-import fs from "fs/promises";
-import path from "path";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const savingsGoal = parseInt(searchParams.get("savingsGoal") || "1000");
+    const savingsGoal = Number.parseInt(
+      searchParams.get("savingsGoal") || "1000",
+      10,
+    );
     const monthParam = searchParams.get("month"); // Format: YYYY-MM
 
     // Get service instances
@@ -22,12 +24,7 @@ export async function GET(request: NextRequest) {
     const data = await dataService.loadData();
 
     // Load configured recurring expenses
-    const configPath = path.join(
-      process.cwd(),
-      "data",
-      "financial-config.json"
-    );
-    const configData = JSON.parse(await fs.readFile(configPath, "utf-8"));
+    const configData = await FinancialConfigService.getInstance().loadConfig();
     const configuredExpenses = configData.recurringExpenses || [];
 
     // Parse month or use current
@@ -40,14 +37,13 @@ export async function GET(request: NextRequest) {
       month = today.getMonth() + 1;
     }
 
-    const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
 
     // Get current month expenses using TransactionService
     const monthExpenses = transactionService.getMonthExpenses(
       data.transactions,
       year,
-      month
+      month,
     );
 
     // Load budget mappings to convert transaction categories to budget categories
@@ -72,7 +68,7 @@ export async function GET(request: NextRequest) {
         const current = spentByCategory.get(budgetCategory) || 0;
         spentByCategory.set(
           budgetCategory,
-          current + Math.abs(transaction.amount)
+          current + Math.abs(transaction.amount),
         );
       }
     }
@@ -81,15 +77,11 @@ export async function GET(request: NextRequest) {
     const mappedCategoryIds = new Set(
       Object.values(budgetMappings)
         .flat()
-        .filter((id): id is string => typeof id === "string")
+        .filter((id): id is string => typeof id === "string"),
     );
 
     // Load user categories
     const userCategories = data.categories || [];
-    const userCategoryMap = new Map(
-      userCategories.map((cat) => [cat.id, cat.name])
-    );
-
     // Track unmapped categories with examples for smart suggestions
     const unmappedCategories = new Map<
       string,
@@ -99,7 +91,7 @@ export async function GET(request: NextRequest) {
     monthExpenses.forEach((t) => {
       // Find the user category for this transaction
       const userCategory = userCategories.find(
-        (cat) => cat.name === t.category || cat.id === t.category
+        (cat) => cat.name === t.category || cat.id === t.category,
       );
       const categoryId = userCategory?.id;
 
@@ -124,13 +116,20 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate category budgets using BudgetService
-    const monthlyIncome = 2787.67;
+    const monthlyIncome = configData.incomeSources
+      .filter((source) => source.isActive)
+      .reduce(
+        (total, source) =>
+          total +
+          budgetService.convertToMonthly(source.amount, source.frequency),
+        0,
+      );
     const budgets = budgetService.calculateCategoryBudgets(
       monthlyIncome,
       configuredExpenses,
       data.transactions,
       endDate,
-      spentByCategory
+      spentByCategory,
     );
 
     // Generate smart suggestions for unmapped categories
@@ -141,7 +140,7 @@ export async function GET(request: NextRequest) {
         totalAmount: Math.round(info.totalAmount * 100) / 100,
         examples: info.examples,
         suggestions: categoryService.suggestCategories(info.examples),
-      })
+      }),
     );
 
     // Calculate summary totals
@@ -152,7 +151,7 @@ export async function GET(request: NextRequest) {
       monthlyIncome - savingsGoal - totalDebtPayments;
     const totalSpent = Array.from(spentByCategory.values()).reduce(
       (sum, val) => sum + val,
-      0
+      0,
     );
 
     return NextResponse.json({
@@ -170,7 +169,7 @@ export async function GET(request: NextRequest) {
     console.error("Error generating budget:", error);
     return NextResponse.json(
       { error: "Failed to generate budget" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

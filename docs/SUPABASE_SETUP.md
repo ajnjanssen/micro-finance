@@ -58,24 +58,20 @@ secret/service-role key in a `NEXT_PUBLIC_*` variable or browser code.
 
 ## 6. Create database tables
 
-Apply `supabase/migrations/20261101000000_initial_schema.sql` using the
-Supabase SQL Editor or Supabase CLI. The migration enables Row Level Security
-and policies that restrict each table row and private CSV-import object to the
-authenticated owner. The import bucket is private; uploaded object paths must
-begin with the authenticated user's UUID.
+Apply every SQL migration in `supabase/migrations` in timestamp order using the
+Supabase SQL Editor or Supabase CLI. They enable Row Level Security and policies
+that restrict each table row to the authenticated owner. New users start with
+empty financial tables; this app does not copy local JSON files to Supabase.
 
 Official guides: [Google sign-in](https://supabase.com/docs/guides/auth/social-sign-in/auth-google)
 and [Microsoft/Azure sign-in](https://supabase.com/docs/guides/auth/social-sign-in/auth-azure).
 
 ## Hosting readiness
 
-The sign-in flow and schema are foundations only. Existing financial services
-still use local JSON files, so do not deploy this version for multiple users:
-users would not yet have separate financial records. The next migration step
-must move every API/service read and write to the authenticated user's
-PostgreSQL rows and import local JSON data explicitly for the intended user.
-Keep `SUPABASE_DATA_BACKEND_ENABLED` unset or set to `false` in Netlify for now.
-In production this fails closed: authenticated users cannot open the app or
-call its APIs until the storage migration is complete. Set it to `true` only
-after the file-backed services are removed and the end-to-end migration has
-been verified.
+Runtime financial API and service reads/writes now use the authenticated user's
+Supabase records. Each new user starts with an empty administration; existing
+local JSON data is not imported. Keep `SUPABASE_DATA_BACKEND_ENABLED` unset or
+set to `false` until all SQL migrations have been applied and the production
+build and two-user isolation checks have passed. In production this fails
+closed: authenticated users cannot open the app or call its APIs while the
+setting is disabled. Set it to `true` only after those checks.

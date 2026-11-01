@@ -1,9 +1,9 @@
-import fs from "node:fs/promises";
-import path from "node:path";
 import { type NextRequest, NextResponse } from "next/server";
 import { BudgetService } from "@/services/budget-service";
+import { FinancialConfigService } from "@/services/financial-config-service";
 import { FinancialDataService } from "@/services/financial-data";
 import { getSavingsGoalCurrentAmount } from "@/services/savings-goal-progress";
+import { listUserSavingsGoals } from "@/services/supabase-savings-goal-store";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,21 +17,12 @@ export async function GET(request: NextRequest) {
     const data = await dataService.loadData();
 
     // Load configured income, expenses, and savings goals
-    const configPath = path.join(
-      process.cwd(),
-      "data",
-      "financial-config.json",
-    );
-    const configData = JSON.parse(await fs.readFile(configPath, "utf-8"));
+    const configData = await FinancialConfigService.getInstance().loadConfig();
+    const allGoals = await listUserSavingsGoals();
 
-    const goalsPath = path.join(process.cwd(), "data", "savings-goals.json");
-    const goalsData = JSON.parse(await fs.readFile(goalsPath, "utf-8"));
-
-    const configuredIncome =
-      configData.incomeSources || configData.income || [];
+    const configuredIncome = configData.incomeSources || [];
     const configuredExpenses = configData.recurringExpenses || [];
-    const allGoals = goalsData.goals || [];
-    const savingsGoals = allGoals.map((goal: any) => ({
+    const savingsGoals = allGoals.map((goal) => ({
       ...goal,
       currentAmount: getSavingsGoalCurrentAmount(
         goal,
@@ -55,8 +46,12 @@ export async function GET(request: NextRequest) {
 
     // Calculate total monthly income (configured + recurring)
     const configuredIncomeTotal = configuredIncome
-      .filter((s: any) => s.isActive)
-      .reduce((sum: number, s: any) => sum + s.amount, 0);
+      .filter((source) => source.isActive)
+      .reduce(
+        (sum, source) =>
+          sum + budgetService.convertToMonthly(source.amount, source.frequency),
+        0,
+      );
 
     // Only include recurring income that occurs THIS month
     const currentMonth = monthEndDate.getMonth();

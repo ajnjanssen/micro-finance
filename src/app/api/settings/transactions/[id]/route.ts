@@ -1,146 +1,90 @@
-import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { type NextRequest, NextResponse } from "next/server";
 import { addActivityLog } from "@/services/activity-log-service";
+import { FinancialDataService } from "@/services/financial-data";
+import type { Transaction } from "@/types/finance";
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+type RouteContext = { params: Promise<{ id: string }> };
+
+export async function PUT(request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const transactionId = id;
-    const updatedTransaction = await request.json();
-
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
-    const transactionIndex = financialData.transactions.findIndex(
-      (tx: any) => tx.id === transactionId
+    const transaction = (await request.json()) as Transaction;
+    const updated = await FinancialDataService.getInstance().updateTransaction(
+      id,
+      transaction,
     );
-    if (transactionIndex === -1) {
+    if (!updated) {
       return NextResponse.json(
         { error: "Transaction not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
-
-    financialData.transactions[transactionIndex] = updatedTransaction;
-    financialData.lastUpdated = new Date().toISOString();
-
-    await fs.writeFile(
-      dataPath,
-      JSON.stringify(financialData, null, 2),
-      "utf-8"
-    );
-
-    return NextResponse.json(updatedTransaction);
+    return NextResponse.json(updated);
   } catch (error) {
     console.error("Error updating transaction:", error);
     return NextResponse.json(
       { error: "Failed to update transaction" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const transactionId = id;
-    const updates = await request.json();
-
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
-    const transactionIndex = financialData.transactions.findIndex(
-      (tx: any) => tx.id === transactionId
+    const updates = (await request.json()) as Partial<Transaction>;
+    const updated = await FinancialDataService.getInstance().updateTransaction(
+      id,
+      updates,
     );
-    if (transactionIndex === -1) {
+    if (!updated) {
       return NextResponse.json(
         { error: "Transaction not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
-
-    // Merge updates into existing transaction
-    financialData.transactions[transactionIndex] = {
-      ...financialData.transactions[transactionIndex],
-      ...updates,
-    };
-    financialData.lastUpdated = new Date().toISOString();
-
-    await fs.writeFile(
-      dataPath,
-      JSON.stringify(financialData, null, 2),
-      "utf-8"
-    );
-
-    return NextResponse.json(financialData.transactions[transactionIndex]);
+    return NextResponse.json(updated);
   } catch (error) {
     console.error("Error patching transaction:", error);
     return NextResponse.json(
       { error: "Failed to patch transaction" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const transactionId = id;
-
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
-    const transactionIndex = financialData.transactions.findIndex(
-      (tx: any) => tx.id === transactionId
+    const service = FinancialDataService.getInstance();
+    const data = await service.loadData();
+    const deleted = data.transactions.find(
+      (transaction) => transaction.id === id,
     );
-    if (transactionIndex === -1) {
+    if (!deleted) {
       return NextResponse.json(
         { error: "Transaction not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
-
-    const deletedTransaction = financialData.transactions[transactionIndex];
-
-    financialData.transactions.splice(transactionIndex, 1);
-    financialData.lastUpdated = new Date().toISOString();
-
-    await fs.writeFile(
-      dataPath,
-      JSON.stringify(financialData, null, 2),
-      "utf-8"
-    );
-
-    // Log the activity
+    if (!(await service.deleteTransaction(id))) {
+      return NextResponse.json(
+        { error: "Transaction not found" },
+        { status: 404 },
+      );
+    }
     await addActivityLog("delete", "transaction", {
-      entityId: deletedTransaction.id,
-      entityName: deletedTransaction.description || "Transactie",
-      description: `Transactie verwijderd: ${deletedTransaction.amount}`,
-      metadata: {
-        amount: deletedTransaction.amount,
-        type: deletedTransaction.type,
-      },
+      entityId: deleted.id,
+      entityName: deleted.description || "Transactie",
+      description: `Transactie verwijderd: ${deleted.amount}`,
+      metadata: { amount: deleted.amount, type: deleted.type },
     });
-
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting transaction:", error);
     return NextResponse.json(
       { error: "Failed to delete transaction" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

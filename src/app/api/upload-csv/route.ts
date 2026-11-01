@@ -1,61 +1,51 @@
-import { NextRequest, NextResponse } from "next/server";
-import { writeFile } from "fs/promises";
-import path from "path";
-import { importCSVTransactions } from "../../../../scripts/import-csv";
+import { type NextRequest, NextResponse } from "next/server";
+import { parseFinancialCsv } from "@/services/csv-import-service";
+import { FinancialDataService } from "@/services/financial-data";
+import { insertUserTransactions } from "@/services/supabase-financial-store";
+
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.formData();
-    const file = data.get("csv") as File;
-
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    const formData = await request.formData();
+    const file = formData.get("csv");
+    if (!(file instanceof File)) {
+      return NextResponse.json(
+        { error: "No CSV file uploaded" },
+        { status: 400 },
+      );
     }
-
-    // Check if it's a CSV file
-    if (!file.name.endsWith(".csv")) {
+    if (!file.name.toLowerCase().endsWith(".csv")) {
       return NextResponse.json(
         { error: "File must be a CSV" },
-        { status: 400 }
+        { status: 400 },
       );
     }
-
-    // Save the file to realdata folder with timestamp
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const fileName = `uploaded_${timestamp}_${file.name}`;
-    const filePath = path.join(process.cwd(), "data", "realdata", fileName);
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
-
-    try {
-      // Run the import script
-      await importCSVTransactions();
-
-      return NextResponse.json({
-        success: true,
-        message: "CSV uploaded and processed successfully!",
-        fileName: fileName,
-      });
-    } catch (error) {
-      console.error("Import error:", error);
+    if (file.size === 0 || file.size > MAX_UPLOAD_SIZE) {
       return NextResponse.json(
-        {
-          error: "Failed to process CSV",
-          details: error instanceof Error ? error.message : "Unknown error",
-        },
-        { status: 500 }
+        { error: "CSV file must be between 1 byte and 10 MB" },
+        { status: 400 },
       );
     }
+
+    const financialData = await FinancialDataService.getInstance().loadData();
+    const result = parseFinancialCsv(await file.text(), financialData);
+    await insertUserTransactions(result.transactions);
+
+    return NextResponse.json({
+      success: true,
+      message: "CSV transactions imported successfully",
+      importedCount: result.transactions.length,
+      skippedCount: result.skippedCount,
+      totalParsed: result.parsedCount,
+    });
   } catch (error) {
-    console.error("Upload error:", error);
+    console.error("CSV import failed:", error);
     return NextResponse.json(
       {
-        error: "Upload failed",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error.message : "Failed to process CSV",
       },
-      { status: 500 }
+      { status: 400 },
     );
   }
 }

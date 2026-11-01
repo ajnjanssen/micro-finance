@@ -1,57 +1,50 @@
-import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { type NextRequest, NextResponse } from "next/server";
 import { addActivityLog } from "@/services/activity-log-service";
+import { FinancialDataService } from "@/services/financial-data";
+import type { Account } from "@/types/finance";
 
 export async function GET() {
   try {
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
-    return NextResponse.json(financialData.accounts || []);
+    const data = await FinancialDataService.getInstance().loadData();
+    return NextResponse.json(data.accounts);
   } catch (error) {
     console.error("Error loading accounts:", error);
     return NextResponse.json(
       { error: "Failed to load accounts" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const newAccount = await request.json();
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
+    const account = (await request.json()) as Omit<Account, "id">;
+    if (
+      !account.name ||
+      !account.type ||
+      !Number.isFinite(account.startingBalance) ||
+      !account.startDate
+    ) {
+      return NextResponse.json(
+        { error: "Invalid account data" },
+        { status: 400 },
+      );
+    }
 
-    financialData.accounts = financialData.accounts || [];
-    financialData.accounts.push(newAccount);
-    financialData.lastUpdated = new Date().toISOString();
-
-    await fs.writeFile(
-      dataPath,
-      JSON.stringify(financialData, null, 2),
-      "utf-8"
-    );
-
-    // Log the activity
+    const created =
+      await FinancialDataService.getInstance().addAccount(account);
     await addActivityLog("create", "account", {
-      entityId: newAccount.id,
-      entityName: newAccount.name,
-      description: `Rekening aangemaakt: ${newAccount.name}`,
-      metadata: {
-        type: newAccount.type,
-      },
+      entityId: created.id,
+      entityName: created.name,
+      description: `Rekening aangemaakt: ${created.name}`,
+      metadata: { type: created.type },
     });
-
-    return NextResponse.json(newAccount);
+    return NextResponse.json(created);
   } catch (error) {
     console.error("Error creating account:", error);
     return NextResponse.json(
       { error: "Failed to create account" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

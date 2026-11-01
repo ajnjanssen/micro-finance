@@ -1,24 +1,28 @@
-import {
-  FinancialData,
-  Transaction,
+import type {
   Account,
   BalanceProjection,
+  FinancialData,
   MonthlyOverview,
+  Transaction,
 } from "@/types/finance";
-import fs from "fs/promises";
-import path from "path";
+import { calculateAccountBalances } from "./account-balance";
+import {
+  deleteUserTransaction,
+  insertUserAccount,
+  insertUserTransaction,
+  loadUserFinancialData,
+  resetUserFinancialData,
+  updateUserAccount,
+  updateUserTransaction,
+} from "./supabase-financial-store";
 import {
   enrichTransaction,
-  validateTransaction,
   isDuplicate,
+  validateTransaction,
 } from "./transaction-validator";
-import { calculateAccountBalances } from "./account-balance";
-
-const DATA_FILE_PATH = path.join(process.cwd(), "data", "financial-data.json");
 
 export class FinancialDataService {
   private static instance: FinancialDataService;
-  private data: FinancialData | null = null;
 
   static getInstance(): FinancialDataService {
     if (!FinancialDataService.instance) {
@@ -28,48 +32,11 @@ export class FinancialDataService {
   }
 
   async loadData(): Promise<FinancialData> {
-    // Always reload from file to get latest changes
-    try {
-      const fileContent = await fs.readFile(DATA_FILE_PATH, "utf-8");
-      this.data = JSON.parse(fileContent);
-    } catch (error) {
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        error.code === "ENOENT"
-      ) {
-        this.data = {
-          accounts: [],
-          transactions: [],
-          categories: [],
-          lastUpdated: new Date().toISOString(),
-        };
-      } else {
-        console.error("Error loading financial data:", error);
-        throw error;
-      }
-    }
-    return this.data!;
-  }
-
-  async saveData(): Promise<void> {
-    if (!this.data) {
-      throw new Error("No data to save");
-    }
-
-    this.data.lastUpdated = new Date().toISOString();
-
-    try {
-      await fs.writeFile(DATA_FILE_PATH, JSON.stringify(this.data, null, 2));
-    } catch (error) {
-      console.error("Error saving financial data:", error);
-      throw error;
-    }
+    return loadUserFinancialData();
   }
 
   async addTransaction(
-    transaction: Omit<Transaction, "id">
+    transaction: Omit<Transaction, "id">,
   ): Promise<Transaction> {
     const data = await this.loadData();
 
@@ -79,7 +46,7 @@ export class FinancialDataService {
       throw new Error(
         `Validation failed: ${validationErrors
           .map((e) => e.message)
-          .join(", ")}`
+          .join(", ")}`,
       );
     }
 
@@ -96,20 +63,13 @@ export class FinancialDataService {
       id: `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     } as Transaction;
 
-    data.transactions.push(newTransaction);
-
-    // Sort transactions by date (newest first)
-    data.transactions.sort((a, b) => {
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
-    });
-
-    await this.saveData();
+    await insertUserTransaction(newTransaction);
     return newTransaction;
   }
 
   async updateTransaction(
     id: string,
-    updates: Partial<Transaction>
+    updates: Partial<Transaction>,
   ): Promise<Transaction | null> {
     const data = await this.loadData();
     const transactionIndex = data.transactions.findIndex((t) => t.id === id);
@@ -118,12 +78,7 @@ export class FinancialDataService {
       return null;
     }
 
-    const oldTransaction = data.transactions[transactionIndex];
-    const updatedTransaction = { ...oldTransaction, ...updates };
-
-    data.transactions[transactionIndex] = updatedTransaction;
-    await this.saveData();
-    return updatedTransaction;
+    return updateUserTransaction(id, updates);
   }
 
   async deleteTransaction(id: string): Promise<boolean> {
@@ -134,28 +89,22 @@ export class FinancialDataService {
       return false;
     }
 
-    const transaction = data.transactions[transactionIndex];
-
-    data.transactions.splice(transactionIndex, 1);
-    await this.saveData();
-    return true;
+    return deleteUserTransaction(id);
   }
 
   async addAccount(account: Omit<Account, "id">): Promise<Account> {
-    const data = await this.loadData();
     const newAccount: Account = {
       ...account,
       id: `acc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
 
-    data.accounts.push(newAccount);
-    await this.saveData();
+    await insertUserAccount(newAccount);
     return newAccount;
   }
 
   async updateAccount(
     id: string,
-    updates: Partial<Account>
+    updates: Partial<Account>,
   ): Promise<Account | null> {
     const data = await this.loadData();
     const accountIndex = data.accounts.findIndex((acc) => acc.id === id);
@@ -164,12 +113,7 @@ export class FinancialDataService {
       return null;
     }
 
-    data.accounts[accountIndex] = {
-      ...data.accounts[accountIndex],
-      ...updates,
-    };
-    await this.saveData();
-    return data.accounts[accountIndex];
+    return updateUserAccount(id, updates);
   }
 
   async getAccountBalance(accountId: string): Promise<number> {
@@ -187,7 +131,7 @@ export class FinancialDataService {
     const balances = await this.getAccountBalances();
     return Object.values(balances).reduce(
       (total, balance) => total + balance,
-      0
+      0,
     );
   }
 
@@ -208,7 +152,7 @@ export class FinancialDataService {
 
   async getMonthlyOverview(
     year: number,
-    month: number
+    month: number,
   ): Promise<MonthlyOverview> {
     const data = await this.loadData();
     const startDate = new Date(year, month - 1, 1);
@@ -221,7 +165,7 @@ export class FinancialDataService {
       return transactionDate >= startDate && transactionDate <= endDate;
     });
     const actualMonthTransactions = monthTransactions.filter(
-      (transaction) => transaction.completed !== false
+      (transaction) => transaction.completed !== false,
     );
 
     const actualIncome = actualMonthTransactions
@@ -254,14 +198,14 @@ export class FinancialDataService {
       const recurringCategories = new Set(
         data.transactions
           .filter((t) => t.isRecurring && t.type === "expense")
-          .map((t) => t.category)
+          .map((t) => t.category),
       );
 
       // Calculate historical monthly averages for categories without recurring transactions
       const historicalMonthlyExpenses = this.calculateHistoricalMonthlyAverages(
         data,
         year,
-        month
+        month,
       );
 
       // Add projected amounts for categories that typically occur monthly (but not those with recurring transactions)
@@ -286,12 +230,12 @@ export class FinancialDataService {
               categoryTotals[category] += projectedAmount;
             }
           }
-        }
+        },
       );
 
       // Also add explicitly recurring transactions that haven't occurred yet
       const recurringTransactions = data.transactions.filter(
-        (t) => t.isRecurring && t.recurringType === "monthly"
+        (t) => t.isRecurring && t.recurringType === "monthly",
       );
 
       // Group by description and calculate average amount (to avoid double-counting)
@@ -359,7 +303,7 @@ export class FinancialDataService {
         if (insurancePaidThisMonth < insuranceAvg * 0.5) {
           const projectedInsurance = Math.min(
             insuranceAvg - insurancePaidThisMonth,
-            500
+            500,
           ); // Cap at reasonable amount
           totalExpenses += projectedInsurance;
           projectedExpenses += projectedInsurance;
@@ -404,7 +348,7 @@ export class FinancialDataService {
         new Date(t.date) >= threeMonthsAgo &&
         t.type === "expense" &&
         !t.isRecurring &&
-        Math.abs(t.amount) <= 100 // Exclude purchases over €100 (likely one-time or irregular)
+        Math.abs(t.amount) <= 100, // Exclude purchases over €100 (likely one-time or irregular)
     );
 
     // Group by month to get proper average
@@ -433,7 +377,7 @@ export class FinancialDataService {
 
     // Get recurring transactions
     const recurringTransactions = data.transactions.filter(
-      (t) => t.isRecurring && t.recurringType
+      (t) => t.isRecurring && t.recurringType,
     );
 
     // Calculate net recurring monthly
@@ -477,7 +421,7 @@ export class FinancialDataService {
     // Start with current balance
     let runningBalance = Object.values(currentBalances).reduce(
       (sum, balance) => sum + balance,
-      0
+      0,
     );
 
     for (let i = 0; i <= monthsAhead; i++) {
@@ -560,10 +504,10 @@ export class FinancialDataService {
 
   private getCategoryMonthlyAverage(
     data: FinancialData,
-    category: string
+    category: string,
   ): number {
     const categoryTransactions = data.transactions.filter(
-      (t) => t.type === "expense" && t.category === category
+      (t) => t.type === "expense" && t.category === category,
     );
 
     if (categoryTransactions.length === 0) {
@@ -572,7 +516,7 @@ export class FinancialDataService {
 
     const total = categoryTransactions.reduce(
       (sum, t) => sum + Math.abs(t.amount),
-      0
+      0,
     );
     const months = new Set(
       categoryTransactions.map((t) => {
@@ -580,7 +524,7 @@ export class FinancialDataService {
         return `${date.getFullYear()}-${(date.getMonth() + 1)
           .toString()
           .padStart(2, "0")}`;
-      })
+      }),
     ).size;
 
     return months > 0 ? total / months : 0;
@@ -589,7 +533,7 @@ export class FinancialDataService {
   private calculateHistoricalMonthlyAverages(
     data: FinancialData,
     currentYear: number,
-    currentMonth: number
+    currentMonth: number,
   ): { [category: string]: number } {
     const currentMonthKey = `${currentYear}-${currentMonth
       .toString()
@@ -601,7 +545,7 @@ export class FinancialDataService {
         t.type === "expense" &&
         `${new Date(t.date).getFullYear()}-${(new Date(t.date).getMonth() + 1)
           .toString()
-          .padStart(2, "0")}` !== currentMonthKey
+          .padStart(2, "0")}` !== currentMonthKey,
     );
 
     // Group by category and calculate monthly averages
@@ -636,13 +580,6 @@ export class FinancialDataService {
   }
 
   async resetAllData(): Promise<void> {
-    // Reset to completely empty state
-    this.data = {
-      accounts: [],
-      transactions: [],
-      categories: [],
-      lastUpdated: new Date().toISOString(),
-    };
-    await this.saveData();
+    await resetUserFinancialData();
   }
 }

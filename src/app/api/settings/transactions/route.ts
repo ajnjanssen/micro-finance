@@ -1,123 +1,87 @@
-import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { type NextRequest, NextResponse } from "next/server";
 import { addActivityLog } from "@/services/activity-log-service";
+import { FinancialDataService } from "@/services/financial-data";
+import type { Transaction } from "@/types/finance";
 
 export async function GET() {
   try {
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
-    return NextResponse.json(financialData.transactions || []);
+    const data = await FinancialDataService.getInstance().loadData();
+    return NextResponse.json(data.transactions);
   } catch (error) {
     console.error("Error loading transactions:", error);
     return NextResponse.json(
       { error: "Failed to load transactions" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const newTransaction = await request.json();
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
-    financialData.transactions = financialData.transactions || [];
-    financialData.transactions.push(newTransaction);
-    financialData.lastUpdated = new Date().toISOString();
-
-    await fs.writeFile(
-      dataPath,
-      JSON.stringify(financialData, null, 2),
-      "utf-8"
-    );
-
-    // Log the activity
+    const transaction = (await request.json()) as Omit<Transaction, "id">;
+    const created =
+      await FinancialDataService.getInstance().addTransaction(transaction);
     await addActivityLog("create", "transaction", {
-      entityId: newTransaction.id,
-      entityName: newTransaction.description || "Nieuwe transactie",
-      description: `Transactie toegevoegd: ${newTransaction.amount} voor ${newTransaction.description || "onbekend"}`,
+      entityId: created.id,
+      entityName: created.description || "Nieuwe transactie",
+      description: `Transactie toegevoegd: ${created.amount} voor ${created.description || "onbekend"}`,
       metadata: {
-        amount: newTransaction.amount,
-        type: newTransaction.type,
-        category: newTransaction.category,
+        amount: created.amount,
+        type: created.type,
+        category: created.category,
       },
     });
-
-    return NextResponse.json(newTransaction);
+    return NextResponse.json(created);
   } catch (error) {
     console.error("Error creating transaction:", error);
     return NextResponse.json(
-      { error: "Failed to create transaction" },
-      { status: 500 }
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to create transaction",
+      },
+      { status: 400 },
     );
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const updateData = await request.json();
+    const updateData = (await request.json()) as Partial<Transaction> & {
+      id?: string;
+    };
     const { id, ...updates } = updateData;
-
     if (!id) {
       return NextResponse.json(
         { error: "Transaction ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
-    const transactionIndex = financialData.transactions.findIndex(
-      (t: any) => t.id === id
-    );
-
-    if (transactionIndex === -1) {
+    const transaction =
+      await FinancialDataService.getInstance().updateTransaction(id, updates);
+    if (!transaction) {
       return NextResponse.json(
         { error: "Transaction not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
-
-    // Update the transaction with new data
-    financialData.transactions[transactionIndex] = {
-      ...financialData.transactions[transactionIndex],
-      ...updates,
-    };
-
-    financialData.lastUpdated = new Date().toISOString();
-
-    await fs.writeFile(
-      dataPath,
-      JSON.stringify(financialData, null, 2),
-      "utf-8"
-    );
-
-    const updatedTransaction = financialData.transactions[transactionIndex];
-
-    // Log the activity
     await addActivityLog("update", "transaction", {
-      entityId: updatedTransaction.id,
-      entityName: updatedTransaction.description || "Transactie",
-      description: `Transactie bijgewerkt`,
+      entityId: transaction.id,
+      entityName: transaction.description,
+      description: "Transactie bijgewerkt",
       metadata: {
-        amount: updatedTransaction.amount,
-        category: updatedTransaction.category,
+        amount: transaction.amount,
+        category: transaction.category,
       },
     });
-
-    return NextResponse.json(updatedTransaction);
+    return NextResponse.json(transaction);
   } catch (error) {
     console.error("Error updating transaction:", error);
     return NextResponse.json(
       { error: "Failed to update transaction" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

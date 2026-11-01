@@ -1,32 +1,36 @@
-import { promises as fs } from "fs";
-import path from "path";
-import type {
-  ActivityLog,
-  ActivityLogData,
-  LogAction,
-  LogEntity,
-} from "@/types/activity-log";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { ActivityLog, LogAction, LogEntity } from "@/types/activity-log";
 
-const ACTIVITY_LOG_PATH = path.join(process.cwd(), "data", "activity-log.json");
-const MAX_LOGS = 1000; // Keep last 1000 log entries
+const MAX_LOGS = 1000;
 
-/**
- * Get all activity logs
- */
-export async function getActivityLogs(): Promise<ActivityLog[]> {
-  try {
-    const data = await fs.readFile(ACTIVITY_LOG_PATH, "utf-8");
-    const logData = JSON.parse(data) as ActivityLogData;
-    return logData.logs || [];
-  } catch (error) {
-    // File doesn't exist yet, return empty array
-    return [];
+function throwOnError(error: { message: string } | null): void {
+  if (error) {
+    throw new Error(`Supabase activity-log operation failed: ${error.message}`);
   }
 }
 
-/**
- * Add a new activity log entry
- */
+export async function getActivityLogs(): Promise<ActivityLog[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("activity_logs")
+    .select("id,logged_at,action,entity,entity_id,entity_name,details,metadata")
+    .order("logged_at", { ascending: false })
+    .limit(MAX_LOGS);
+  throwOnError(error);
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    timestamp: row.logged_at,
+    action: row.action as LogAction,
+    entity: row.entity as LogEntity,
+    ...(row.entity_id ? { entityId: row.entity_id } : {}),
+    ...(row.entity_name ? { entityName: row.entity_name } : {}),
+    ...(row.details ? { details: row.details } : {}),
+    ...(row.metadata
+      ? { metadata: row.metadata as Record<string, unknown> }
+      : {}),
+  }));
+}
+
 export async function addActivityLog(
   action: LogAction,
   entity: LogEntity,
@@ -34,61 +38,37 @@ export async function addActivityLog(
     entityId?: string;
     entityName?: string;
     description?: string;
-    metadata?: Record<string, any>;
-  } = {}
+    metadata?: Record<string, unknown>;
+  } = {},
 ): Promise<void> {
-  try {
-    const logs = await getActivityLogs();
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  throwOnError(authError);
+  if (!authData.user) throw new Error("Authentication required.");
 
-    const newLog: ActivityLog = {
-      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date().toISOString(),
-      action,
-      entity,
-      entityId: details.entityId,
-      entityName: details.entityName,
-      details: details.description,
-      metadata: details.metadata,
-    };
-
-    // Add new log at the beginning
-    logs.unshift(newLog);
-
-    // Keep only the most recent logs
-    const trimmedLogs = logs.slice(0, MAX_LOGS);
-
-    const logData: ActivityLogData = {
-      logs: trimmedLogs,
-      version: "1.0.0",
-    };
-
-    await fs.writeFile(ACTIVITY_LOG_PATH, JSON.stringify(logData, null, 2));
-  } catch (error) {
-    console.error("Error adding activity log:", error);
-  }
+  const { error } = await supabase.from("activity_logs").insert({
+    user_id: authData.user.id,
+    id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    logged_at: new Date().toISOString(),
+    action,
+    entity,
+    entity_id: details.entityId ?? null,
+    entity_name: details.entityName ?? null,
+    details: details.description ?? null,
+    metadata: details.metadata ?? null,
+  });
+  throwOnError(error);
 }
 
-/**
- * Clear all activity logs
- */
 export async function clearActivityLogs(): Promise<void> {
-  const logData: ActivityLogData = {
-    logs: [],
-    version: "1.0.0",
-  };
-
-  await fs.writeFile(ACTIVITY_LOG_PATH, JSON.stringify(logData, null, 2));
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("activity_logs")
+    .delete()
+    .not("id", "is", null);
+  throwOnError(error);
 }
 
-/**
- * Initialize activity log file if it doesn't exist
- */
 export async function initializeActivityLog(): Promise<void> {
-  try {
-    await fs.access(ACTIVITY_LOG_PATH);
-  } catch {
-    // File doesn't exist, create it
-    await clearActivityLogs();
-    console.log("Initialized activity-log.json");
-  }
+  // Logs are created on demand; no shared local file needs initialization.
 }

@@ -1,64 +1,69 @@
-import { NextResponse, NextRequest } from "next/server";
-import fs from "fs/promises";
-import path from "path";
+import { type NextRequest, NextResponse } from "next/server";
+import { addActivityLog } from "@/services/activity-log-service";
+import { FinancialDataService } from "@/services/financial-data";
+import { insertUserCategory } from "@/services/supabase-financial-store";
+import type { Category } from "@/types/finance";
 
 export async function GET() {
   try {
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
-
-    return NextResponse.json(financialData.categories || []);
+    const data = await FinancialDataService.getInstance().loadData();
+    return NextResponse.json(data.categories);
   } catch (error) {
     console.error("Error loading categories:", error);
     return NextResponse.json(
       { error: "Failed to load categories" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const newCategory = await request.json();
-    const dataPath = path.join(process.cwd(), "data", "financial-data.json");
-    const data = await fs.readFile(dataPath, "utf-8");
-    const financialData = JSON.parse(data);
+    const body = (await request.json()) as Partial<Category>;
+    const name = body.name?.trim();
+    if (!name || !body.type || !body.color) {
+      return NextResponse.json(
+        { error: "Name, type, and color are required" },
+        { status: 400 },
+      );
+    }
+    if (!["income", "expense", "transfer"].includes(body.type)) {
+      return NextResponse.json({ error: "Invalid type" }, { status: 400 });
+    }
 
-    // Check if category already exists
+    const data = await FinancialDataService.getInstance().loadData();
     if (
-      financialData.categories.some((c: any) => c.name === newCategory.name)
+      data.categories.some(
+        (category) =>
+          category.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase(),
+      )
     ) {
       return NextResponse.json(
         { error: "Category already exists" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Add unique ID to category
-    const categoryWithId = {
-      ...newCategory,
+    const category: Category = {
       id:
-        newCategory.id ||
-        `cat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        body.id ??
+        `cat-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      name,
+      type: body.type,
+      color: body.color,
     };
-
-    financialData.categories = financialData.categories || [];
-    financialData.categories.push(categoryWithId);
-    financialData.lastUpdated = new Date().toISOString();
-
-    await fs.writeFile(
-      dataPath,
-      JSON.stringify(financialData, null, 2),
-      "utf-8"
-    );
-
-    return NextResponse.json(categoryWithId);
+    await insertUserCategory(category);
+    await addActivityLog("create", "category", {
+      entityId: category.id,
+      entityName: category.name,
+      description: `Categorie aangemaakt: ${category.name}`,
+    });
+    return NextResponse.json(category);
   } catch (error) {
     console.error("Error creating category:", error);
     return NextResponse.json(
       { error: "Failed to create category" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

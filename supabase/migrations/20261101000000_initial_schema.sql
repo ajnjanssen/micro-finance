@@ -38,6 +38,7 @@ create table public.transactions (
   to_account_id text,
   from_account_id text,
   transfer_id text,
+  savings_goal_id text,
   primary key (user_id, id),
   foreign key (user_id, account_id) references public.accounts (user_id, id) on delete restrict,
   foreign key (user_id, to_account_id) references public.accounts (user_id, id) on delete restrict,

@@ -3,23 +3,17 @@
  * Manages debts and assets, calculates net worth
  */
 
-import fs from "fs/promises";
-import path from "path";
 import type {
   Asset,
   Debt,
-  NetWorthSummary,
   DebtPaymentSchedule,
+  NetWorthSummary,
 } from "@/types/assets-liabilities";
 import type { FinancialConfiguration } from "@/types/financial-config";
+import { FinancialConfigService } from "./financial-config-service";
 
 export class AssetsLiabilitiesService {
   private static instance: AssetsLiabilitiesService;
-  private configPath: string;
-
-  private constructor() {
-    this.configPath = path.join(process.cwd(), "data", "financial-config.json");
-  }
 
   static getInstance(): AssetsLiabilitiesService {
     if (!AssetsLiabilitiesService.instance) {
@@ -32,8 +26,7 @@ export class AssetsLiabilitiesService {
    * Load configuration
    */
   private async loadConfig(): Promise<FinancialConfiguration> {
-    const data = await fs.readFile(this.configPath, "utf-8");
-    return JSON.parse(data);
+    return FinancialConfigService.getInstance().loadConfig();
   }
 
   /**
@@ -41,11 +34,7 @@ export class AssetsLiabilitiesService {
    */
   private async saveConfig(config: FinancialConfiguration): Promise<void> {
     config.lastUpdated = new Date().toISOString();
-    await fs.writeFile(
-      this.configPath,
-      JSON.stringify(config, null, 2),
-      "utf-8"
-    );
+    await FinancialConfigService.getInstance().saveConfig(config);
   }
 
   /**
@@ -181,7 +170,7 @@ export class AssetsLiabilitiesService {
     // Also remove corresponding recurring expense
     if (!config.recurringExpenses) config.recurringExpenses = [];
     config.recurringExpenses = config.recurringExpenses.filter(
-      (e) => e.id !== `debt-recurring-${id}`
+      (e) => e.id !== `debt-recurring-${id}`,
     );
 
     await this.saveConfig(config);
@@ -197,13 +186,13 @@ export class AssetsLiabilitiesService {
     if (!config.recurringExpenses) config.recurringExpenses = [];
 
     const activeDebts = config.liabilities.filter(
-      (d) => d.isActive && d.monthlyPayment && d.monthlyPayment > 0
+      (d) => d.isActive && d.monthlyPayment && d.monthlyPayment > 0,
     );
 
     for (const debt of activeDebts) {
       const recurringId = `debt-recurring-${debt.id}`;
       const existingIndex = config.recurringExpenses.findIndex(
-        (e) => e.id === recurringId
+        (e) => e.id === recurringId,
       );
 
       const recurringExpense = {
@@ -232,10 +221,10 @@ export class AssetsLiabilitiesService {
 
     // Remove recurring expenses for debts that no longer exist or are inactive
     const validDebtIds = new Set(
-      activeDebts.map((d) => `debt-recurring-${d.id}`)
+      activeDebts.map((d) => `debt-recurring-${d.id}`),
     );
     config.recurringExpenses = config.recurringExpenses.filter(
-      (e) => !e.id.startsWith("debt-recurring-") || validDebtIds.has(e.id)
+      (e) => !e.id.startsWith("debt-recurring-") || validDebtIds.has(e.id),
     );
 
     // Ensure budget mapping exists for debt payments
@@ -259,11 +248,11 @@ export class AssetsLiabilitiesService {
 
     const totalAssets = activeAssets.reduce(
       (sum, asset) => sum + asset.currentValue,
-      0
+      0,
     );
     const totalLiabilities = activeLiabilities.reduce(
       (sum, debt) => sum + debt.currentBalance,
-      0
+      0,
     );
 
     return {
@@ -307,7 +296,7 @@ export class AssetsLiabilitiesService {
   async recordDebtPayment(
     debtId: string,
     paymentAmount: number,
-    interestCharged: number = 0
+    interestCharged: number = 0,
   ): Promise<Debt> {
     const config = await this.loadConfig();
     if (!config.liabilities) throw new Error("No liabilities found");
@@ -336,7 +325,7 @@ export class AssetsLiabilitiesService {
     const rate = asset.appreciationRate || -(asset.depreciationRate || 0);
     const monthlyRate = rate / 12 / 100; // Convert annual % to monthly decimal
 
-    return asset.currentValue * Math.pow(1 + monthlyRate, monthsFromNow);
+    return asset.currentValue * (1 + monthlyRate) ** monthsFromNow;
   }
 
   /**
