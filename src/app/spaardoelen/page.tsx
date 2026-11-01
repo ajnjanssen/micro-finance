@@ -306,6 +306,7 @@ export default function SpaardoelenPage() {
           <SavingsTransactionsModal
             goalId={selectedGoal.id}
             goalName={selectedGoal.name}
+            toAccountId={selectedGoal.toAccountId}
             transactions={transactions}
             isOpen={selectedGoalId !== null}
             onClose={() => setSelectedGoalId(null)}

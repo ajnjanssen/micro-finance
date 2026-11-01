@@ -6,7 +6,7 @@
 import type { FinancialConfiguration } from "@/types/financial-config";
 import type { FinancialData, Transaction } from "@/types/finance";
 import type { SavingsGoal } from "@/types/savings-goals";
-import { BudgetService } from "./budget-service";
+import { BudgetService, type BudgetBreakdown } from "./budget-service";
 
 export interface FinancialInsight {
   id: string;
@@ -33,18 +33,18 @@ export class FinancialAdvisorService {
   private config: FinancialConfiguration | null = null;
   private financialData: FinancialData | null = null;
   private goals: SavingsGoal[] = [];
-  private budgetBreakdown: any = null; // Pre-calculated budget breakdown from API
+  private budgetBreakdown: BudgetBreakdown | null = null;
 
   constructor(
     config: FinancialConfiguration,
     financialData: FinancialData,
     goals: SavingsGoal[],
-    budgetBreakdown?: any // Optional: use pre-calculated breakdown from API
+    budgetBreakdown?: BudgetBreakdown
   ) {
     this.config = config;
     this.financialData = financialData;
     this.goals = goals;
-    this.budgetBreakdown = budgetBreakdown;
+    this.budgetBreakdown = budgetBreakdown || null;
   }
 
   /**
@@ -585,7 +585,7 @@ export class FinancialAdvisorService {
     }
 
     // Use pre-calculated budget breakdown from API if available, otherwise calculate it
-    let budgetBreakdown;
+    let budgetBreakdown: BudgetBreakdown;
     if (this.budgetBreakdown) {
       budgetBreakdown = this.budgetBreakdown;
       console.log("Using pre-calculated budget breakdown from API");
@@ -598,19 +598,20 @@ export class FinancialAdvisorService {
         this.config.recurringExpenses || [],
         this.financialData.transactions || [],
         this.goals || [],
-        now // monthEndDate
+        now, // monthEndDate
+        undefined,
+        this.financialData.accounts
       );
       console.log("Calculated budget breakdown using BudgetService");
     }
 
     // Calculate actual spending and net income
-    const totalSpending =
-      budgetBreakdown.needs.spent +
-      budgetBreakdown.wants.spent +
-      budgetBreakdown.savings.spent;
-
-    const netIncome = totalIncome - totalSpending;
-    const savingsRate = totalIncome > 0 ? (netIncome / totalIncome) * 100 : 0;
+    const totalExpenses =
+      budgetBreakdown.needs.spent + budgetBreakdown.wants.spent;
+    const totalSavings = budgetBreakdown.savings.spent;
+    const netIncome = totalIncome - totalExpenses - totalSavings;
+    const savingsRate =
+      totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0;
 
     // Essential expenses (needs) and wants spending
     const essentialExpenses = budgetBreakdown.needs.spent;
@@ -647,16 +648,16 @@ export class FinancialAdvisorService {
     const savingsBalance = totalSavingsBalance - savingsGoalBalance;
 
     // ADVICE 1: Increase savings rate if too low
-    if (savingsRate < 20 && totalIncome > 0) {
+    if (savingsRate < 20 && totalIncome > 0 && netIncome >= 0) {
       const targetSavings = totalIncome * 0.2;
-      const needToReduce = targetSavings - netIncome;
+      const needToReduce = targetSavings - totalSavings;
 
       insights.push({
         id: "advice-increase-savings",
         type: "warning",
         category: "advice",
         title: "Verhoog je spaarquote naar 20%",
-        description: `Je spaart nu €${netIncome.toFixed(
+        description: `Je spaart nu €${totalSavings.toFixed(
           2
         )}/maand (${savingsRate.toFixed(
           0
@@ -704,7 +705,7 @@ export class FinancialAdvisorService {
     // Only show advice if no active emergency fund goal exists
     if (!hasActiveEmergencyFund && monthsCovered < 6 && essentialExpenses > 0) {
       const targetAmount = essentialExpenses * 6;
-      const shortfall = targetAmount - savingsBalance;
+      const shortfall = Math.max(0, targetAmount - totalEmergencyFund);
 
       insights.push({
         id: "advice-emergency-fund",
@@ -762,11 +763,18 @@ export class FinancialAdvisorService {
           `Verlaag uitgaven met minimaal €${Math.abs(netIncome).toFixed(
             2
           )}/maand`,
-          `Wants-uitgaven: €${actualWantsSpending.toFixed(
-            2
-          )} - schrap 50% hiervan`,
-          "Review alle abonnementen en schrap wat je niet gebruikt",
-          "Beperk restaurants/takeout tot 2x per maand",
+          ...(actualWantsSpending > 0
+            ? [
+                `Dat is circa ${Math.min(
+                  100,
+                  Math.ceil((Math.abs(netIncome) / actualWantsSpending) * 100)
+                )}% van je flexibele uitgaven (€${actualWantsSpending.toFixed(
+                  2
+                )}/maand); een halvering is dus niet automatisch nodig`,
+              ]
+            : []),
+          "Bekijk je grootste flexibele uitgaven en verlaag eerst posten die je kunt missen",
+          "Controleer of geplande uitgaven, inkomsten en terugkerende betalingen kloppen",
         ],
         actionable: {
           label: "Bekijk uitgaven",
@@ -784,7 +792,11 @@ export class FinancialAdvisorService {
 
     const wantsTarget = totalIncome * budgetPercentages.wants;
 
-    if (actualWantsSpending > wantsTarget * 1.2 && totalIncome > 0) {
+    if (
+      netIncome >= 0 &&
+      actualWantsSpending > wantsTarget * 1.2 &&
+      totalIncome > 0
+    ) {
       const excess = actualWantsSpending - wantsTarget;
       insights.push({
         id: "advice-reduce-wants",
@@ -948,9 +960,11 @@ export class FinancialAdvisorService {
         title: "Je financiële situatie",
         description: `Inkomen: €${totalIncome.toFixed(
           2
-        )}/maand | Uitgaven: €${totalSpending.toFixed(
+        )}/maand | Uitgaven: €${totalExpenses.toFixed(
           2
-        )}/maand | Netto: €${netIncome.toFixed(2)}/maand`,
+        )}/maand | Sparen: €${totalSavings.toFixed(
+          2
+        )}/maand | Vrij na sparen: €${netIncome.toFixed(2)}/maand`,
         impact: "low",
         recommendations: [
           `Spaarquote: ${savingsRate.toFixed(0)}%`,

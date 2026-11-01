@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
 import { promises as fs } from "fs";
+import { type NextRequest, NextResponse } from "next/server";
 import path from "path";
-import { SavingsGoal, SavingsGoalsData } from "@/types/savings-goals";
+import { SavingsGoal, type SavingsGoalsData } from "@/types/savings-goals";
 
 const GOALS_FILE = path.join(process.cwd(), "data", "savings-goals.json");
 
@@ -39,7 +39,7 @@ async function saveGoals(goalsData: SavingsGoalsData): Promise<void> {
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await context.params;
@@ -64,6 +64,32 @@ export async function PUT(
     goals[index] = updatedGoal;
     await saveGoals({ goals, lastUpdated: new Date().toISOString() });
 
+    // Remove pending scheduled transfers when a contribution is stopped.
+    if (
+      updatedGoal.monthlyContribution === 0 &&
+      updatedGoal.fromAccountId &&
+      updatedGoal.toAccountId
+    ) {
+      const financialDataPath = path.join(
+        process.cwd(),
+        "data",
+        "financial-data.json",
+      );
+      const financialData = JSON.parse(
+        await fs.readFile(financialDataPath, "utf-8"),
+      );
+      financialData.transactions = financialData.transactions.filter(
+        (transaction: any) =>
+          transaction.savingsGoalId !== id ||
+          transaction.type !== "transfer" ||
+          transaction.completed !== false,
+      );
+      await fs.writeFile(
+        financialDataPath,
+        JSON.stringify(financialData, null, 2),
+      );
+    }
+
     // Handle transfer transaction updates if accounts or contribution changed
     if (
       updatedGoal.monthlyContribution &&
@@ -74,15 +100,15 @@ export async function PUT(
       const financialDataPath = path.join(
         process.cwd(),
         "data",
-        "financial-data.json"
+        "financial-data.json",
       );
       const financialData = JSON.parse(
-        await fs.readFile(financialDataPath, "utf-8")
+        await fs.readFile(financialDataPath, "utf-8"),
       );
 
       // Find existing transfer transactions for this goal
       const existingTransfers = financialData.transactions.filter(
-        (t: any) => t.savingsGoalId === id && t.type === "transfer"
+        (t: any) => t.savingsGoalId === id && t.type === "transfer",
       );
 
       // Check if accounts or amount changed
@@ -91,11 +117,19 @@ export async function PUT(
         oldGoal.toAccountId !== updatedGoal.toAccountId;
       const amountChanged =
         oldGoal.monthlyContribution !== updatedGoal.monthlyContribution;
+      const startDateChanged = oldGoal.startDate !== updatedGoal.startDate;
+      const nameChanged = oldGoal.name !== updatedGoal.name;
 
-      if (existingTransfers.length > 0 && (accountsChanged || amountChanged)) {
-        // Remove old transfers
+      if (
+        existingTransfers.length > 0 &&
+        (accountsChanged || amountChanged || startDateChanged || nameChanged)
+      ) {
+        // Keep completed ledger entries; only replace the pending schedule.
         financialData.transactions = financialData.transactions.filter(
-          (t: any) => t.savingsGoalId !== id || t.type !== "transfer"
+          (t: any) =>
+            t.savingsGoalId !== id ||
+            t.type !== "transfer" ||
+            t.completed !== false,
         );
 
         // Create new transfers with updated info
@@ -109,7 +143,7 @@ export async function PUT(
           category: "transfer",
           accountId: updatedGoal.fromAccountId,
           toAccountId: updatedGoal.toAccountId,
-          date: new Date().toISOString().split("T")[0],
+          date: updatedGoal.startDate || new Date().toISOString().split("T")[0],
           isRecurring: true,
           recurringType: "monthly",
           tags: ["savings", "transfer"],
@@ -127,7 +161,7 @@ export async function PUT(
           category: "transfer",
           accountId: updatedGoal.toAccountId,
           fromAccountId: updatedGoal.fromAccountId,
-          date: new Date().toISOString().split("T")[0],
+          date: updatedGoal.startDate || new Date().toISOString().split("T")[0],
           isRecurring: true,
           recurringType: "monthly",
           tags: ["savings", "transfer"],
@@ -141,7 +175,7 @@ export async function PUT(
         financialData.transactions.push(outgoingTransfer, incomingTransfer);
         await fs.writeFile(
           financialDataPath,
-          JSON.stringify(financialData, null, 2)
+          JSON.stringify(financialData, null, 2),
         );
       } else if (existingTransfers.length === 0) {
         // No existing transfers, create new ones
@@ -155,7 +189,7 @@ export async function PUT(
           category: "transfer",
           accountId: updatedGoal.fromAccountId,
           toAccountId: updatedGoal.toAccountId,
-          date: new Date().toISOString().split("T")[0],
+          date: updatedGoal.startDate || new Date().toISOString().split("T")[0],
           isRecurring: true,
           recurringType: "monthly",
           tags: ["savings", "transfer"],
@@ -173,7 +207,7 @@ export async function PUT(
           category: "transfer",
           accountId: updatedGoal.toAccountId,
           fromAccountId: updatedGoal.fromAccountId,
-          date: new Date().toISOString().split("T")[0],
+          date: updatedGoal.startDate || new Date().toISOString().split("T")[0],
           isRecurring: true,
           recurringType: "monthly",
           tags: ["savings", "transfer"],
@@ -187,7 +221,7 @@ export async function PUT(
         financialData.transactions.push(outgoingTransfer, incomingTransfer);
         await fs.writeFile(
           financialDataPath,
-          JSON.stringify(financialData, null, 2)
+          JSON.stringify(financialData, null, 2),
         );
       }
     }
@@ -197,14 +231,14 @@ export async function PUT(
     console.error("Error updating savings goal:", error);
     return NextResponse.json(
       { error: "Failed to update savings goal" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await context.params;
@@ -227,7 +261,7 @@ export async function DELETE(
     console.error("Error deleting savings goal:", error);
     return NextResponse.json(
       { error: "Failed to delete savings goal" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
+import { calculateAccountBalances } from "@/services/account-balance";
 import { FinancialDataService } from "@/services/financial-data";
 
 export async function POST(request: Request) {
   try {
-    const { newBalance } = await request.json();
+    const { newBalance, accountId } = await request.json();
 
-    if (typeof newBalance !== "number" || isNaN(newBalance)) {
+    if (typeof newBalance !== "number" || !Number.isFinite(newBalance)) {
       return NextResponse.json(
         { error: "Invalid balance value" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -16,47 +17,50 @@ export async function POST(request: Request) {
     const data = await service.loadData();
 
     if (data.accounts.length === 0) {
+      return NextResponse.json({ error: "No accounts found" }, { status: 400 });
+    }
+
+    const checkingAccounts = data.accounts.filter(
+      (account) => account.type === "checking",
+    );
+    const account = accountId
+      ? checkingAccounts.find((candidate) => candidate.id === accountId)
+      : checkingAccounts[0];
+
+    if (!account) {
       return NextResponse.json(
-        { error: "No accounts found" },
-        { status: 400 }
+        { error: "No checking account found" },
+        { status: 400 },
       );
     }
 
-    // Calculate current balance from all accounts
-    const currentTotalBalance = data.accounts.reduce(
-      (sum, account) => sum + (account.startingBalance || 0),
-      0
-    );
+    const currentBalance =
+      calculateAccountBalances(data.accounts, data.transactions)[account.id] ??
+      0;
+    const difference = newBalance - currentBalance;
+    const updatedAccount = await service.updateAccount(account.id, {
+      startingBalance: (account.startingBalance || 0) + difference,
+    });
 
-    // Add completed transactions to current balance
-    const completedTransactionsTotal = data.transactions
-      .filter((tx) => tx.completed)
-      .reduce((sum, tx) => sum + tx.amount, 0);
-
-    const actualCurrentBalance = currentTotalBalance + completedTransactionsTotal;
-    const difference = newBalance - actualCurrentBalance;
-
-    // Update the first account's starting balance to reflect the new total
-    // This assumes all completed transactions are already factored in
-    const firstAccount = data.accounts[0];
-    if (firstAccount) {
-      const newStartingBalance = (firstAccount.startingBalance || 0) + difference;
-      await service.updateAccount(firstAccount.id, {
-        startingBalance: newStartingBalance,
-      });
+    if (!updatedAccount) {
+      return NextResponse.json(
+        { error: "Checking account could not be updated" },
+        { status: 404 },
+      );
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: "Balance updated successfully",
       newBalance,
-      oldBalance: actualCurrentBalance
+      oldBalance: currentBalance,
+      accountId: account.id,
     });
   } catch (error) {
     console.error("Error updating balance:", error);
     return NextResponse.json(
       { error: "Failed to update balance" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

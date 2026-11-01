@@ -5,6 +5,7 @@ export interface Account {
   startingBalance: number; // Manual balance at startDate - NOT calculated from transactions
   startDate: string; // YYYY-MM-DD - when you started tracking this account
   description?: string;
+  expectedAnnualReturn?: number; // Percentage used for investment account projections
   // Balance is always: startingBalance (no transaction calculations)
 }
 
@@ -24,6 +25,8 @@ export interface Transaction {
   completed?: boolean; // Whether the transaction has actually occurred
   completedDate?: string; // When it was marked as completed
   toAccountId?: string; // For transfers: destination account
+  fromAccountId?: string; // For incoming transfer entries
+  transferId?: string; // Links the two ledger entries for one transfer
 }
 
 export interface Category {
@@ -41,6 +44,12 @@ export interface FinancialData {
 }
 
 export interface BalanceProjection {
+  date: string;
+  totalBalance: number;
+  accountBalances: { [accountId: string]: number };
+}
+
+export interface InvestmentProjection {
   date: string;
   totalBalance: number;
   accountBalances: { [accountId: string]: number };

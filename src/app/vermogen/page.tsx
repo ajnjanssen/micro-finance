@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { formatCurrency } from "@/utils/formatters";
-import { DebtForm } from "@/components/vermogen/DebtForm";
+import { useEffect, useState } from "react";
+import { PageHeader, PageLayout } from "@/components/PageLayout";
 import { AssetForm } from "@/components/vermogen/AssetForm";
-import { DebtProjectionView } from "@/components/vermogen/DebtProjectionView";
+import { DebtForm } from "@/components/vermogen/DebtForm";
 import { DebtProjectionChart } from "@/components/vermogen/DebtProjectionChart";
-import { PageLayout, PageHeader } from "@/components/PageLayout";
-import type { NetWorthSummary, Asset, Debt } from "@/types/assets-liabilities";
+import { DebtProjectionView } from "@/components/vermogen/DebtProjectionView";
+import { InvestmentProjection } from "@/components/vermogen/InvestmentProjection";
+import type { Asset, Debt, NetWorthSummary } from "@/types/assets-liabilities";
+import { formatCurrency } from "@/utils/formatters";
 
 export default function VermogenPage() {
   const [summary, setSummary] = useState<NetWorthSummary | null>(null);
@@ -117,6 +118,8 @@ export default function VermogenPage() {
       {summary.liabilities.length > 0 && (
         <DebtProjectionChart debts={summary.liabilities} />
       )}
+
+      <InvestmentProjection />
 
       {/* Assets Section */}
       <div className="card bg-base-100 shadow">

@@ -1,4 +1,4 @@
-import { Account } from "@/types/finance";
+import type { Account } from "@/types/finance";
 
 interface AccountTypeFieldProps {
   value: Account["type"];
@@ -11,10 +11,11 @@ export default function AccountTypeField({
 }: AccountTypeFieldProps) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="label">
+      <label className="label" htmlFor="account-type">
         <span className="label-text">Type</span>
       </label>
       <select
+        id="account-type"
         value={value}
         onChange={(e) => onChange(e.target.value as Account["type"])}
         className="select w-fit min-w-60 px-4 rounded-lg select-bordered"
@@ -22,7 +23,7 @@ export default function AccountTypeField({
         <option value="checking">Checking</option>
         <option value="savings">Savings</option>
         <option value="crypto">Crypto</option>
-        <option value="stocks">Stocks</option>
+        <option value="stocks">Beleggingen (aandelen/indexfonds)</option>
         <option value="debt">Debt</option>
         <option value="other">Other</option>
       </select>

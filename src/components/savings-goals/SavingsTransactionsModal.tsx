@@ -2,10 +2,12 @@ import { formatCurrency } from "@/utils/formatters";
 import { format } from "date-fns";
 import { nl } from "date-fns/locale";
 import type { Transaction } from "@/types/finance-v2";
+import { getSavingsGoalCurrentAmount } from "@/services/savings-goal-progress";
 
 interface SavingsTransactionsModalProps {
   goalId: string;
   goalName: string;
+  toAccountId?: string;
   transactions: Transaction[];
   isOpen: boolean;
   onClose: () => void;
@@ -14,6 +16,7 @@ interface SavingsTransactionsModalProps {
 export function SavingsTransactionsModal({
   goalId,
   goalName,
+  toAccountId,
   transactions,
   isOpen,
   onClose,
@@ -23,9 +26,9 @@ export function SavingsTransactionsModal({
   const linkedTransactions = transactions.filter(
     (t) => t.savingsGoalId === goalId
   );
-  const totalSaved = linkedTransactions.reduce(
-    (sum, t) => sum + Math.abs(t.amount),
-    0
+  const totalSaved = getSavingsGoalCurrentAmount(
+    { id: goalId, toAccountId },
+    linkedTransactions
   );
 
   return (

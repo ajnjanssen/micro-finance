@@ -85,7 +85,7 @@ export function AssetForm({ asset, onClose, onSave }: AssetFormProps) {
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box max-w-2xl">
+      <div className="modal-box max-w-5xl">
         <h3 className="font-bold text-lg mb-4">
           {asset ? "Activum Bewerken" : "Nieuw Activum"}
         </h3>

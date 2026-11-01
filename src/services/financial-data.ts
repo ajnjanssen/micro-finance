@@ -12,6 +12,7 @@ import {
   validateTransaction,
   isDuplicate,
 } from "./transaction-validator";
+import { calculateAccountBalances } from "./account-balance";
 
 const DATA_FILE_PATH = path.join(process.cwd(), "data", "financial-data.json");
 
@@ -32,14 +33,22 @@ export class FinancialDataService {
       const fileContent = await fs.readFile(DATA_FILE_PATH, "utf-8");
       this.data = JSON.parse(fileContent);
     } catch (error) {
-      console.error("Error loading financial data:", error);
-      // Als het bestand niet bestaat, maak een lege data structuur
-      this.data = {
-        accounts: [],
-        transactions: [],
-        categories: [],
-        lastUpdated: new Date().toISOString(),
-      };
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        this.data = {
+          accounts: [],
+          transactions: [],
+          categories: [],
+          lastUpdated: new Date().toISOString(),
+        };
+      } else {
+        console.error("Error loading financial data:", error);
+        throw error;
+      }
     }
     return this.data!;
   }
@@ -165,20 +174,13 @@ export class FinancialDataService {
 
   async getAccountBalance(accountId: string): Promise<number> {
     const data = await this.loadData();
-    const account = data.accounts.find((a) => a.id === accountId);
-    return account?.startingBalance || 0;
+    const balances = calculateAccountBalances(data.accounts, data.transactions);
+    return balances[accountId] || 0;
   }
 
   async getAccountBalances(): Promise<{ [accountId: string]: number }> {
     const data = await this.loadData();
-    const balances: { [accountId: string]: number } = {};
-
-    // Use manually set starting balances (NOT calculated from transactions)
-    data.accounts.forEach((account) => {
-      balances[account.id] = account.startingBalance || 0;
-    });
-
-    return balances;
+    return calculateAccountBalances(data.accounts, data.transactions);
   }
 
   async getTotalBalance(): Promise<number> {
@@ -218,12 +220,15 @@ export class FinancialDataService {
       const transactionDate = new Date(transaction.date);
       return transactionDate >= startDate && transactionDate <= endDate;
     });
+    const actualMonthTransactions = monthTransactions.filter(
+      (transaction) => transaction.completed !== false
+    );
 
-    const actualIncome = monthTransactions
+    const actualIncome = actualMonthTransactions
       .filter((t) => t.type === "income")
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-    const actualExpenses = monthTransactions
+    const actualExpenses = actualMonthTransactions
       .filter((t) => t.type === "expense")
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
@@ -234,7 +239,7 @@ export class FinancialDataService {
 
     // Top categorieën voor uitgaven
     const categoryTotals: { [category: string]: number } = {};
-    monthTransactions
+    actualMonthTransactions
       .filter((t) => t.type === "expense")
       .forEach((transaction) => {
         if (!categoryTotals[transaction.category]) {
@@ -264,7 +269,7 @@ export class FinancialDataService {
         ([category, averageAmount]) => {
           if (averageAmount > 0 && !recurringCategories.has(category)) {
             // Only project if this category hasn't been paid this month yet
-            const categoryPaidThisMonth = monthTransactions
+            const categoryPaidThisMonth = actualMonthTransactions
               .filter((t) => t.type === "expense" && t.category === category)
               .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
@@ -311,7 +316,7 @@ export class FinancialDataService {
       recurringByDescription.forEach((data, description) => {
         const normalizedDesc = description.toLowerCase().trim();
 
-        const alreadyPaidThisMonth = monthTransactions.some((t) => {
+        const alreadyPaidThisMonth = actualMonthTransactions.some((t) => {
           const monthTxDesc = t.description.toLowerCase().trim();
           return (
             monthTxDesc.includes(normalizedDesc) ||
@@ -347,7 +352,7 @@ export class FinancialDataService {
       // Add conservative estimate for insurance costs
       const insuranceAvg = this.getCategoryMonthlyAverage(data, "insurance");
       if (insuranceAvg > 0) {
-        const insurancePaidThisMonth = monthTransactions
+        const insurancePaidThisMonth = actualMonthTransactions
           .filter((t) => t.type === "expense" && t.category === "insurance")
           .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 

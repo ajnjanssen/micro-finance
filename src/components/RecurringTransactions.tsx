@@ -1,21 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { formatCurrency } from "@/utils/formatters";
 import type { Account } from "@/types/finance";
+import { formatCurrency } from "@/utils/formatters";
 
 interface RecurringTransaction {
 	source?: string;
 	name?: string;
 	amount: number;
 	accountId?: string;
+	goalName?: string;
+	goalProgressAmount?: number;
+	goalTargetAmount?: number;
+	fromAccountId?: string;
+	toAccountId?: string;
 }
 
 interface MonthProjection {
 	month: string;
 	incomeBreakdown: { source: string; amount: number; accountId?: string }[];
 	expenseBreakdown: { name: string; amount: number; accountId?: string }[];
-	savingsBreakdown?: { name: string; amount: number; accountId?: string }[];
+	savingsBreakdown?: RecurringTransaction[];
+	accountBalances?: { [accountId: string]: number };
 	configuredIncome: number;
 	configuredExpenses: number;
 }
@@ -70,6 +76,15 @@ export default function RecurringTransactions({
 		}
 	};
 
+	const getSavingsDestination = (item: RecurringTransaction) => {
+		const source = accounts.find((account) => account.id === item.fromAccountId)?.name;
+		const destination = accounts.find(
+			(account) => account.id === item.toAccountId
+		)?.name;
+		if (!source && !destination) return null;
+		return `${source || "Rekening"} → ${destination || "Spaarrekening"}`;
+	};
+
 	const toggleMonth = (month: string) => {
 		setExpandedMonths((prev) => {
 			const newSet = new Set(prev);
@@ -118,7 +133,23 @@ export default function RecurringTransactions({
 					const isExpanded = expandedMonths.has(projection.month);
 					const totalIncome = projection.configuredIncome;
 					const totalExpenses = projection.configuredExpenses;
-					const netAmount = totalIncome - totalExpenses;
+					const totalSavings =
+						projection.savingsBreakdown?.reduce(
+							(sum, saving) => sum + saving.amount,
+							0
+						) || 0;
+					const monthlyFreeCash =
+						totalIncome - totalExpenses - totalSavings;
+					const checkingAccounts = accounts.filter(
+						(account) => account.type === "checking"
+					);
+					const availableAccounts =
+						checkingAccounts.length > 0 ? checkingAccounts : accounts.slice(0, 1);
+					const availableCash = availableAccounts.reduce(
+						(sum, account) =>
+							sum + (projection.accountBalances?.[account.id] || 0),
+						0
+					);
 
 					return (
 						<div
@@ -152,13 +183,21 @@ export default function RecurringTransactions({
 
 								<div className="flex items-center gap-4">
 									<div className="text-right">
-										<div className="text-xs text-base-content/60">Netto</div>
+										<div className="text-xs text-base-content/60">
+											Verwacht saldo betaalrekening
+										</div>
 										<div
 											className={`font-semibold ${
-												netAmount >= 0 ? "text-success" : "text-error"
+												availableCash >= 0
+													? "text-success"
+													: "text-error"
 											}`}
 										>
-											{formatCurrency(netAmount)}
+											{formatCurrency(availableCash)}
+										</div>
+										<div className="text-xs text-base-content/60">
+											Maandelijkse vrije ruimte:{" "}
+											{formatCurrency(monthlyFreeCash)}
 										</div>
 									</div>
 								</div>
@@ -256,9 +295,16 @@ export default function RecurringTransactions({
 																<span className="text-sm text-base-content truncate">
 																	{item.name}
 																</span>
-																{item.accountId && getAccountName(item.accountId) && (
-																	<span className={`badge badge-xs ${getAccountBadgeColor(item.accountId)} flex-shrink-0`}>
-																		{getAccountName(item.accountId)}
+																{getSavingsDestination(item) && (
+																	<span className="badge badge-xs badge-success flex-shrink-0">
+																		{getSavingsDestination(item)}
+																	</span>
+																)}
+																{item.goalName && (
+																	<span className="badge badge-xs badge-info flex-shrink-0">
+																		{item.goalName}:{" "}
+																		{formatCurrency(item.goalProgressAmount || 0)} /{" "}
+																		{formatCurrency(item.goalTargetAmount || 0)}
 																	</span>
 																)}
 															</div>

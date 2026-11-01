@@ -1,27 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { PageLayout, PageHeader } from "@/components/PageLayout";
+import { useCallback, useEffect, useState } from "react";
+import { FinancialPlan } from "@/components/advice/FinancialPlan";
+import { PageHeader, PageLayout } from "@/components/PageLayout";
+import type { BudgetBreakdown } from "@/services/budget-service";
 import {
   FinancialAdvisorService,
   type FinancialInsight,
 } from "@/services/financial-advisor";
-import type { FinancialConfiguration } from "@/types/financial-config";
+import { getSavingsGoalCurrentAmount } from "@/services/savings-goal-progress";
 import type { FinancialData } from "@/types/finance";
+import type { FinancialConfiguration } from "@/types/financial-config";
 import type { SavingsGoal } from "@/types/savings-goals";
 
 export default function AdviesPage() {
   const [insights, setInsights] = useState<FinancialInsight[]>([]);
   const [loading, setLoading] = useState(true);
+  const [financialPlanData, setFinancialPlanData] = useState<{
+    config: FinancialConfiguration;
+    financialData: FinancialData;
+    goals: SavingsGoal[];
+    budgetBreakdown: BudgetBreakdown;
+  } | null>(null);
   const [filter, setFilter] = useState<
     "all" | "success" | "warning" | "error" | "info"
   >("all");
 
-  useEffect(() => {
-    loadInsights();
-  }, []);
-
-  const loadInsights = async () => {
+  const loadInsights = useCallback(async () => {
     try {
       const [configRes, financeRes, goalsRes, budgetRes] = await Promise.all([
         fetch("/api/config"),
@@ -36,17 +41,31 @@ export default function AdviesPage() {
       const budgetData = await budgetRes.json();
 
       // Handle different response formats
-      const goals: SavingsGoal[] = Array.isArray(goalsData)
+      const loadedGoals: SavingsGoal[] = Array.isArray(goalsData)
         ? goalsData
         : goalsData.goals || [];
+      const goals = loadedGoals.map((goal) => ({
+        ...goal,
+        currentAmount: getSavingsGoalCurrentAmount(
+          goal,
+          financialData.transactions,
+          financialData.accounts,
+          loadedGoals,
+        ),
+      }));
 
-      console.log("Loaded goals:", goals); // Debug
+      setFinancialPlanData({
+        config,
+        financialData,
+        goals,
+        budgetBreakdown: budgetData as BudgetBreakdown,
+      });
 
       const advisor = new FinancialAdvisorService(
         config,
         financialData,
         goals,
-        budgetData
+        budgetData,
       );
       const generatedInsights = advisor.generateInsights();
 
@@ -56,7 +75,11 @@ export default function AdviesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadInsights();
+  }, [loadInsights]);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -102,6 +125,8 @@ export default function AdviesPage() {
         return "Inkomen";
       case "emergency":
         return "Noodfonds";
+      case "advice":
+        return "Financiële planning";
       default:
         return category;
     }
@@ -133,12 +158,23 @@ export default function AdviesPage() {
     <PageLayout maxWidth="xl">
       <PageHeader
         title="💡 Financieel Advies"
-        subtitle="Persoonlijke inzichten en aanbevelingen op basis van jouw financiële data"
+        subtitle="Van actuele inzichten naar concrete keuzes voor je doelen en financiële toekomst"
       />
+
+      {financialPlanData && (
+        <FinancialPlan
+          config={financialPlanData.config}
+          financialData={financialPlanData.financialData}
+          goals={financialPlanData.goals}
+          budgetBreakdown={financialPlanData.budgetBreakdown}
+          onSaved={loadInsights}
+        />
+      )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <button
+          type="button"
           onClick={() => setFilter("all")}
           className={`stat bg-base-200 rounded-lg hover:bg-base-300 cursor-pointer ${
             filter === "all" ? "ring-2 ring-primary" : ""
@@ -148,6 +184,7 @@ export default function AdviesPage() {
           <div className="stat-value text-2xl">{stats.total}</div>
         </button>
         <button
+          type="button"
           onClick={() => setFilter("success")}
           className={`stat bg-base-200 rounded-lg hover:bg-base-300 cursor-pointer ${
             filter === "success" ? "ring-2 ring-success" : ""
@@ -159,6 +196,7 @@ export default function AdviesPage() {
           </div>
         </button>
         <button
+          type="button"
           onClick={() => setFilter("warning")}
           className={`stat bg-base-200 rounded-lg hover:bg-base-300 cursor-pointer ${
             filter === "warning" ? "ring-2 ring-warning" : ""
@@ -170,6 +208,7 @@ export default function AdviesPage() {
           </div>
         </button>
         <button
+          type="button"
           onClick={() => setFilter("error")}
           className={`stat bg-base-200 rounded-lg hover:bg-base-300 cursor-pointer ${
             filter === "error" ? "ring-2 ring-error" : ""
@@ -179,6 +218,7 @@ export default function AdviesPage() {
           <div className="stat-value text-2xl text-error">{stats.error}</div>
         </button>
         <button
+          type="button"
           onClick={() => setFilter("info")}
           className={`stat bg-base-200 rounded-lg hover:bg-base-300 cursor-pointer ${
             filter === "info" ? "ring-2 ring-info" : ""
@@ -200,10 +240,10 @@ export default function AdviesPage() {
                     filter === "success"
                       ? "successen"
                       : filter === "warning"
-                      ? "waarschuwingen"
-                      : filter === "error"
-                      ? "urgente zaken"
-                      : "informatie"
+                        ? "waarschuwingen"
+                        : filter === "error"
+                          ? "urgente zaken"
+                          : "informatie"
                   }`}
             </h3>
             <p className="text-base-content/70">
@@ -215,6 +255,13 @@ export default function AdviesPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-bold">Aanbevelingen en acties</h2>
+            <p className="text-sm text-base-content/70">
+              Gerangschikt op impact. Gebruik de acties om de onderliggende
+              instellingen of doelen aan te passen.
+            </p>
+          </div>
           {filteredInsights.map((insight) => (
             <div
               key={insight.id}
@@ -235,15 +282,15 @@ export default function AdviesPage() {
                             insight.impact === "high"
                               ? "badge-error"
                               : insight.impact === "medium"
-                              ? "badge-warning"
-                              : "badge-info"
+                                ? "badge-warning"
+                                : "badge-info"
                           }`}
                         >
                           {insight.impact === "high"
                             ? "Hoge impact"
                             : insight.impact === "medium"
-                            ? "Gemiddelde impact"
-                            : "Lage impact"}
+                              ? "Gemiddelde impact"
+                              : "Lage impact"}
                         </span>
                       </div>
                     </div>
@@ -253,12 +300,15 @@ export default function AdviesPage() {
                 {insight.recommendations &&
                   insight.recommendations.length > 0 && (
                     <div className="bg-base-100 rounded-lg p-3 mb-3">
-                      <h4 className="font-semibold text-sm mb-2">
+                      <h4 className="font-semibold text-sm mb-2 text-base-content">
                         🎯 Concrete Actiestappen:
                       </h4>
                       <ul className="space-y-1 text-sm">
-                        {insight.recommendations.map((rec, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
+                        {insight.recommendations.map((rec) => (
+                          <li
+                            key={rec}
+                            className="flex items-start gap-2 text-base-content"
+                          >
                             <span className="text-primary mt-0.5">•</span>
                             <span>{rec}</span>
                           </li>
@@ -283,6 +333,7 @@ export default function AdviesPage() {
       {/* Refresh Button */}
       <div className="mt-6 text-center">
         <button
+          type="button"
           onClick={loadInsights}
           className="btn btn-outline btn-sm"
           disabled={loading}

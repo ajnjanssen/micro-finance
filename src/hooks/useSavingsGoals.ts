@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import type { SavingsGoal } from "@/types/savings-goals";
+import { useEffect, useState } from "react";
+import { getSavingsGoalCurrentAmount } from "@/services/savings-goal-progress";
 import type { Transaction } from "@/types/finance-v2";
+import type { SavingsGoal } from "@/types/savings-goals";
 
 export function useSavingsGoals() {
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
@@ -29,21 +30,15 @@ export function useSavingsGoals() {
       const transactions: Transaction[] = transactionsData.transactions || [];
       const accounts = transactionsData.accounts || [];
 
-      // Calculate currentAmount for each goal based on linked transactions
       const goalsWithProgress = loadedGoals.map((goal: SavingsGoal) => {
-        const linkedTransactions = transactions.filter(
-          (t) => t.savingsGoalId === goal.id
-        );
-
-        // Sum up all linked savings transactions (they should be positive amounts)
-        const totalSaved = linkedTransactions.reduce(
-          (sum, t) => sum + Math.abs(t.amount),
-          0
-        );
-
         return {
           ...goal,
-          currentAmount: totalSaved,
+          currentAmount: getSavingsGoalCurrentAmount(
+            goal,
+            transactions,
+            accounts,
+            loadedGoals,
+          ),
         };
       });
 
@@ -58,7 +53,7 @@ export function useSavingsGoals() {
   };
 
   const addGoal = async (
-    goal: Omit<SavingsGoal, "id" | "createdAt" | "updatedAt" | "currentAmount">
+    goal: Omit<SavingsGoal, "id" | "createdAt" | "updatedAt" | "currentAmount">,
   ) => {
     try {
       const response = await fetch("/api/savings-goals", {

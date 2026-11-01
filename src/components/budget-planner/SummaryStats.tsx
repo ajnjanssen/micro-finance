@@ -12,7 +12,7 @@ export function SummaryStats({ budgets }: SummaryStatsProps) {
   const remaining = totalBudgeted - totalSpent;
 
   return (
-    <div className="stats shadow w-full">
+    <div className="stats shadow w-full bg-base-200">
       <div className="stat">
         <div className="stat-title">Jouw Budget</div>
         <div className="stat-value text-primary">

@@ -1,27 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { useDashboardData } from "./hooks/useDashboardData";
-import { BalanceCard } from "./BalanceCard";
-import { ProjectionChart } from "./ProjectionChart";
-import { MonthlyOverviewCard } from "./MonthlyOverviewCard";
-import { MonthlyBreakdown } from "./MonthlyBreakdown";
-import { ProjectionTable } from "./ProjectionTable";
-import { KeyInsights } from "./KeyInsights";
-import { SavingsBreakdown } from "./SavingsBreakdown";
-import { NetWorthCard } from "./NetWorthCard";
 import type { Account } from "@/types/finance";
+import { BalanceCard } from "./BalanceCard";
+import { useDashboardData } from "./hooks/useDashboardData";
+import { KeyInsights } from "./KeyInsights";
+import { MonthlyBreakdown } from "./MonthlyBreakdown";
+import { MonthlyOverviewCard } from "./MonthlyOverviewCard";
+import { NetWorthCard } from "./NetWorthCard";
+import { ProjectionChart } from "./ProjectionChart";
+import { ProjectionTable } from "./ProjectionTable";
+import { SavingsBreakdown } from "./SavingsBreakdown";
 
 interface DashboardProps {
   currentBalance: number;
   accounts: Account[];
   accountBalances: { [accountId: string]: number };
+  onBalanceUpdate: () => Promise<void>;
 }
 
 export default function Dashboard({
   currentBalance,
   accounts,
   accountBalances,
+  onBalanceUpdate,
 }: DashboardProps) {
   const [projectionMonths, setProjectionMonths] = useState(36);
   const {
@@ -32,6 +34,11 @@ export default function Dashboard({
     loading,
     reloadData,
   } = useDashboardData(projectionMonths);
+
+  const refreshBalanceData = async () => {
+    await onBalanceUpdate();
+    await reloadData();
+  };
 
   if (loading) {
     return (
@@ -54,7 +61,9 @@ export default function Dashboard({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <BalanceCard
           currentBalance={currentBalance}
-          onBalanceUpdate={reloadData}
+          accounts={accounts}
+          accountBalances={accountBalances}
+          onBalanceUpdate={refreshBalanceData}
         />
         <NetWorthCard />
       </div>

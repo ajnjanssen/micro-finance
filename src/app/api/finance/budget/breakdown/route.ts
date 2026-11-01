@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
-import { FinancialDataService } from "@/services/financial-data";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { type NextRequest, NextResponse } from "next/server";
 import { BudgetService } from "@/services/budget-service";
-import fs from "fs/promises";
-import path from "path";
+import { FinancialDataService } from "@/services/financial-data";
+import { getSavingsGoalCurrentAmount } from "@/services/savings-goal-progress";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,16 +20,26 @@ export async function GET(request: NextRequest) {
     const configPath = path.join(
       process.cwd(),
       "data",
-      "financial-config.json"
+      "financial-config.json",
     );
     const configData = JSON.parse(await fs.readFile(configPath, "utf-8"));
 
     const goalsPath = path.join(process.cwd(), "data", "savings-goals.json");
     const goalsData = JSON.parse(await fs.readFile(goalsPath, "utf-8"));
 
-    const configuredIncome = configData.incomeSources || configData.income || [];
+    const configuredIncome =
+      configData.incomeSources || configData.income || [];
     const configuredExpenses = configData.recurringExpenses || [];
-    const savingsGoals = goalsData.goals || [];
+    const allGoals = goalsData.goals || [];
+    const savingsGoals = allGoals.map((goal: any) => ({
+      ...goal,
+      currentAmount: getSavingsGoalCurrentAmount(
+        goal,
+        data.transactions,
+        data.accounts,
+        allGoals,
+      ),
+    }));
 
     // Parse month or use current
     let year: number, month: number;
@@ -74,9 +85,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Resolve category IDs in transactions to category names for budget service
-    const transactionsWithCategoryNames = data.transactions.map(t => ({
+    const transactionsWithCategoryNames = data.transactions.map((t) => ({
       ...t,
-      category: categoryMap.get(t.category) || t.category
+      category: categoryMap.get(t.category) || t.category,
     }));
 
     // Get custom budget percentages from config if set
@@ -89,7 +100,8 @@ export async function GET(request: NextRequest) {
       transactionsWithCategoryNames,
       savingsGoals,
       monthEndDate,
-      customPercentages
+      customPercentages,
+      data.accounts,
     );
 
     return NextResponse.json(breakdown);
@@ -97,7 +109,7 @@ export async function GET(request: NextRequest) {
     console.error("Error generating budget breakdown:", error);
     return NextResponse.json(
       { error: "Failed to generate budget breakdown" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -147,7 +147,17 @@ export interface MonthlyProjection {
   // Breakdown
   incomeBreakdown: { source: string; amount: number; accountId?: string }[];
   expenseBreakdown: { name: string; amount: number; accountId?: string }[];
-  savingsBreakdown?: { name: string; amount: number; accountId?: string }[];
+  savingsBreakdown?: {
+    name: string;
+    amount: number;
+    accountId?: string;
+    goalId?: string;
+    goalName?: string;
+    goalProgressAmount?: number;
+    goalTargetAmount?: number;
+    fromAccountId?: string;
+    toAccountId?: string;
+  }[];
 
   // Confidence
   confidence: number; // 100 for configured items

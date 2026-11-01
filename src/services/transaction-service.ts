@@ -90,7 +90,7 @@ export class TransactionService {
    * @returns Only completed transactions
    */
   filterCompleted(transactions: Transaction[]): Transaction[] {
-    return transactions.filter((t) => t.completed);
+    return transactions.filter((t) => t.completed !== false);
   }
 
   /**
@@ -103,28 +103,39 @@ export class TransactionService {
   occursInMonth(transaction: Transaction, targetDate: Date): boolean {
     if (!transaction.isRecurring) return false;
 
-    const txDate = new Date(transaction.date);
+    const [startYear, startMonth] = transaction.date
+      .split("-")
+      .map(Number);
+    const startMonthIndex = startMonth - 1;
     const targetMonth = targetDate.getMonth();
     const targetYear = targetDate.getFullYear();
+    const monthsSinceStart =
+      (targetYear - startYear) * 12 + targetMonth - startMonthIndex;
 
-    if (transaction.recurringType === "monthly") {
-      // Monthly transactions occur every month if they've started
-      return (
-        txDate.getFullYear() < targetYear ||
-        (txDate.getFullYear() === targetYear &&
-          txDate.getMonth() <= targetMonth)
-      );
+    if (monthsSinceStart < 0) return false;
+
+    if (transaction.recurringEndDate) {
+      const [endYear, endMonth] = transaction.recurringEndDate
+        .split("-")
+        .map(Number);
+      if (
+        targetYear > endYear ||
+        (targetYear === endYear && targetMonth > endMonth - 1)
+      ) {
+        return false;
+      }
     }
 
-    if (transaction.recurringType === "yearly") {
-      // Yearly transactions only occur in their specific month
-      return txDate.getMonth() === targetMonth;
+    switch (transaction.recurringType) {
+      case "yearly":
+        return targetMonth === startMonthIndex;
+      case "monthly":
+      case "weekly":
+      case "daily":
+        return true;
+      default:
+        return false;
     }
-
-    // Note: Transactions don't have quarterly type, but expenses from config do
-    // This is handled in the expense configuration, not transaction level
-
-    return false;
   }
 
   /**

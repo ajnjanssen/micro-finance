@@ -5,19 +5,26 @@
  */
 
 import {
+  BUDGET_CATEGORIES,
   BUDGET_PERCENTAGES,
   BUDGET_TYPES,
-  BUDGET_CATEGORIES,
-  FREQUENCY_TO_MONTHLY,
-  VARIABLE_CATEGORIES,
   type BudgetCategory,
   type BudgetType,
+  FREQUENCY_TO_MONTHLY,
   type Frequency,
+  VARIABLE_CATEGORIES,
 } from "@/constants/categories";
-import { CategoryService } from "./category-service";
-import { TransactionService } from "./transaction-service";
-import type { Transaction } from "@/types/finance";
+import type { Account, Transaction } from "@/types/finance";
 import type { RecurringExpense } from "@/types/financial-config";
+import type { SavingsGoal } from "@/types/savings-goals";
+import { CategoryService } from "./category-service";
+import {
+  findMatchingSavingsGoal,
+  getUniqueRecurringExpenses,
+  isRecurringExpenseActiveInMonth,
+  isSavingsGoalActiveInMonth,
+} from "./recurring-expense-utils";
+import { TransactionService } from "./transaction-service";
 
 export interface BudgetBreakdown {
   needs: {
@@ -74,7 +81,7 @@ export class BudgetService {
    */
   calculate503020Targets(
     totalIncome: number,
-    customPercentages?: { needs: number; wants: number; savings: number }
+    customPercentages?: { needs: number; wants: number; savings: number },
   ): {
     needs: number;
     wants: number;
@@ -130,19 +137,9 @@ export class BudgetService {
    */
   isExpenseActiveInMonth(
     expense: RecurringExpense,
-    monthEndDate: Date
+    monthEndDate: Date,
   ): boolean {
-    if (!expense.isActive) return false;
-
-    const expenseStart = new Date(expense.startDate);
-    if (expenseStart > monthEndDate) return false;
-
-    if (expense.endDate) {
-      const expenseEnd = new Date(expense.endDate);
-      if (expenseEnd < monthEndDate) return false;
-    }
-
-    return true;
+    return isRecurringExpenseActiveInMonth(expense, monthEndDate);
   }
 
   /**
@@ -161,9 +158,10 @@ export class BudgetService {
     totalIncome: number,
     configuredExpenses: RecurringExpense[],
     transactions: Transaction[],
-    savingsGoals: any[], // TODO: Type this properly
+    savingsGoals: SavingsGoal[],
     monthEndDate: Date,
-    customPercentages?: { needs: number; wants: number; savings: number }
+    customPercentages?: { needs: number; wants: number; savings: number },
+    accounts: Account[] = [],
   ): BudgetBreakdown {
     const targets = this.calculate503020Targets(totalIncome, customPercentages);
 
@@ -173,13 +171,13 @@ export class BudgetService {
       [];
 
     // Process configured expenses
-    for (const expense of configuredExpenses) {
+    for (const expense of getUniqueRecurringExpenses(configuredExpenses)) {
       if (!this.isExpenseActiveInMonth(expense, monthEndDate)) continue;
 
       const budgetType = this.categorizeExpense(expense);
       const monthlyAmount = this.convertToMonthly(
         expense.amount,
-        expense.frequency
+        expense.frequency,
       );
       const item = {
         name: expense.name,
@@ -197,17 +195,21 @@ export class BudgetService {
     }
 
     // Process recurring expense transactions (excluding savings transactions and groceries already in config)
-    const recurringExpenses = this.transactionService.filterRecurring(
-      this.transactionService.filterNonSavingsTransactions(
-        this.transactionService.filterByType(transactions, "expense")
+    const recurringExpenses = this.transactionService
+      .filterRecurring(
+        this.transactionService.filterNonSavingsTransactions(
+          this.transactionService.filterByType(transactions, "expense"),
+        ),
       )
-    );
+      .filter((transaction) =>
+        this.transactionService.occursInMonth(transaction, monthEndDate),
+      );
 
     for (const transaction of recurringExpenses) {
       const category = this.categoryService.normalizeCategory(
-        transaction.category
+        transaction.category,
       );
-      const txAmount = Math.abs(transaction.amount);
+      const txAmount = this.transactionService.getMonthlyAmount(transaction);
       const item = {
         name: transaction.description,
         amount: txAmount,
@@ -247,15 +249,50 @@ export class BudgetService {
     }
 
     // Add savings goals - categorize based on budgetType
+    const goalMonth = `${monthEndDate.getFullYear()}-${String(
+      monthEndDate.getMonth() + 1,
+    ).padStart(2, "0")}`;
+    const defaultFromAccountId =
+      accounts.find((account) => account.type === "checking")?.id ||
+      accounts[0]?.id;
+    const defaultToAccountId = accounts.find(
+      (account) => account.type === "savings",
+    )?.id;
+    const uniqueExpenses = getUniqueRecurringExpenses(configuredExpenses);
+    const duplicateGoalIds = new Set<string>();
+
+    for (const expense of uniqueExpenses) {
+      if (
+        !this.isExpenseActiveInMonth(expense, monthEndDate) ||
+        this.categorizeExpense(expense) !== BUDGET_TYPES.SAVINGS
+      ) {
+        continue;
+      }
+
+      const matchingGoal = findMatchingSavingsGoal(
+        expense,
+        savingsGoals as SavingsGoal[],
+        defaultFromAccountId,
+        defaultToAccountId,
+        goalMonth,
+      );
+      if (matchingGoal) duplicateGoalIds.add(matchingGoal.id);
+    }
+
     const goalsByType = savingsGoals
       .filter(
-        (goal: any) => goal.monthlyContribution && goal.monthlyContribution > 0
+        (goal) =>
+          !duplicateGoalIds.has(goal.id) &&
+          isSavingsGoalActiveInMonth(goal, monthEndDate),
       )
-      .map((goal: any) => ({
+      .map((goal) => ({
         name: goal.name,
-        amount: goal.monthlyContribution,
+        amount: Math.min(
+          goal.monthlyContribution || 0,
+          goal.targetAmount - (goal.currentAmount || 0),
+        ),
         category: "Spaardoel",
-        budgetType: goal.budgetType || "savings", // Default to savings if not set
+        budgetType: "savings",
       }));
 
     // Distribute goals to appropriate buckets based on budgetType
@@ -316,13 +353,13 @@ export class BudgetService {
     configuredExpenses: RecurringExpense[],
     transactions: Transaction[],
     monthEndDate: Date,
-    spentByBudgetCategory?: Map<string, number>
+    spentByBudgetCategory?: Map<string, number>,
   ): CategoryBudget[] {
     // Calculate spent by category from transactions
     const monthExpenses = this.transactionService.getMonthExpenses(
       transactions,
       monthEndDate.getFullYear(),
-      monthEndDate.getMonth() + 1
+      monthEndDate.getMonth() + 1,
     );
 
     const spentByCategory = spentByBudgetCategory || new Map<string, number>();
@@ -331,7 +368,7 @@ export class BudgetService {
     if (!spentByBudgetCategory) {
       for (const transaction of monthExpenses) {
         const category = this.categoryService.normalizeCategory(
-          transaction.category
+          transaction.category,
         );
         const current = spentByCategory.get(category) || 0;
         spentByCategory.set(category, current + Math.abs(transaction.amount));
@@ -340,7 +377,7 @@ export class BudgetService {
 
     // Add configured expenses to spent (these are guaranteed to happen)
     const configuredByCategory = new Map<string, number>();
-    for (const expense of configuredExpenses) {
+    for (const expense of getUniqueRecurringExpenses(configuredExpenses)) {
       if (!this.isExpenseActiveInMonth(expense, monthEndDate)) continue;
 
       const category = this.categoryService.normalizeCategory(expense.category);
@@ -349,7 +386,7 @@ export class BudgetService {
       if (VARIABLE_CATEGORIES.includes(category as BudgetCategory)) {
         const monthlyAmount = this.convertToMonthly(
           expense.amount,
-          expense.frequency
+          expense.frequency,
         );
         const current = configuredByCategory.get(category) || 0;
         configuredByCategory.set(category, current + monthlyAmount);
@@ -361,15 +398,16 @@ export class BudgetService {
     }
 
     // Calculate housing and insurance from configured expenses
+    const uniqueExpenses = getUniqueRecurringExpenses(configuredExpenses);
     const housingTotal = this.calculateCategoryTotal(
-      configuredExpenses,
+      uniqueExpenses,
       BUDGET_CATEGORIES.HOUSING,
-      monthEndDate
+      monthEndDate,
     );
     const insuranceTotal = this.calculateCategoryTotal(
-      configuredExpenses,
+      uniqueExpenses,
       BUDGET_CATEGORIES.INSURANCE,
-      monthEndDate
+      monthEndDate,
     );
 
     if (housingTotal > 0) {
@@ -465,7 +503,7 @@ export class BudgetService {
   private calculateCategoryTotal(
     expenses: RecurringExpense[],
     targetCategory: string,
-    monthEndDate: Date
+    monthEndDate: Date,
   ): number {
     return expenses
       .filter((e) => {

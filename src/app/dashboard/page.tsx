@@ -1,59 +1,48 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Dashboard from "@/components/dashboard";
-import { FinancialData } from "@/types/finance";
 import { PageLayout } from "@/components/PageLayout";
+import { calculateAccountBalances } from "@/services/account-balance";
+import type { FinancialData } from "@/types/finance";
 
 export default function DashboardPage() {
   const [financialData, setFinancialData] = useState<FinancialData | null>(
-    null
+    null,
   );
   const [accountBalances, setAccountBalances] = useState<{
     [accountId: string]: number;
   }>({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadFinancialData();
-  }, []);
-
-  const loadFinancialData = async () => {
+  const loadFinancialData = useCallback(async () => {
     try {
       const response = await fetch("/api/finance");
+      if (!response.ok) {
+        throw new Error("Kan financiële data niet laden");
+      }
       const data = await response.json();
 
       setFinancialData(data);
 
-      // Calculate balances: starting balance + completed transactions
-      const balances: { [accountId: string]: number } = {};
-      data.accounts.forEach(
-        (account: { id: string; startingBalance: number }) => {
-          balances[account.id] = account.startingBalance || 0;
-        }
+      setAccountBalances(
+        calculateAccountBalances(data.accounts, data.transactions),
       );
-
-      // Add completed transactions to balances
-      data.transactions
-        .filter((tx: any) => tx.completed)
-        .forEach((tx: any) => {
-          if (balances[tx.accountId] !== undefined) {
-            balances[tx.accountId] += tx.amount;
-          }
-        });
-
-      setAccountBalances(balances);
     } catch (error) {
       console.error("Error loading financial data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadFinancialData();
+  }, [loadFinancialData]);
 
   // Calculate total balance across all accounts
   const totalBalance = Object.values(accountBalances).reduce(
     (sum, balance) => sum + balance,
-    0
+    0,
   );
 
   if (loading) {
@@ -83,6 +72,7 @@ export default function DashboardPage() {
         currentBalance={totalBalance}
         accounts={financialData.accounts}
         accountBalances={accountBalances}
+        onBalanceUpdate={loadFinancialData}
       />
     </PageLayout>
   );

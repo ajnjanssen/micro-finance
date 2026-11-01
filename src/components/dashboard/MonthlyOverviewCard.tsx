@@ -39,7 +39,7 @@ export function MonthlyOverviewCard({ overview }: MonthlyOverviewCardProps) {
             </svg>
           </div>
         </div>
-        <div className="stats shadow w-full">
+        <div className="stats shadow w-full bg-base-200">
           <div className="stat">
             <div className="stat-title">Inkomsten</div>
             <div className="stat-value text-success">

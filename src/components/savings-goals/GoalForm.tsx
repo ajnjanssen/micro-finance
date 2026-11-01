@@ -13,11 +13,41 @@ interface GoalFormProps {
   onCancel: () => void;
 }
 
+function getLocalDateInputValue(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getProjectedCompletionDate(
+  startDate: string,
+  currentAmount: number,
+  targetAmount: number,
+  monthlyContribution: number
+): string | null {
+  if (!startDate || targetAmount <= 0 || monthlyContribution <= 0) return null;
+
+  const monthsToTarget = Math.ceil(
+    Math.max(0, targetAmount - currentAmount) / monthlyContribution
+  );
+  const projectedDate = new Date(`${startDate}T12:00:00`);
+  projectedDate.setDate(1);
+  projectedDate.setMonth(
+    projectedDate.getMonth() + Math.max(0, monthsToTarget - 1)
+  );
+
+  return projectedDate.toLocaleDateString("nl-NL", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export function GoalForm({
   editingGoal,
   defaultMonthlySavings,
-  monthlyIncome = 2800,
-  monthlyEssentialExpenses = 1316.6,
+  monthlyIncome = 2995.86,
+  monthlyEssentialExpenses = 1423.4,
   transactions = [],
   accounts = [],
   onSubmit,
@@ -46,6 +76,7 @@ export function GoalForm({
     savingsPercentage: initialSavingsPercentage,
     fromAccountId: editingGoal?.fromAccountId || "",
     toAccountId: editingGoal?.toAccountId || "",
+    startDate: editingGoal?.startDate || getLocalDateInputValue(),
   });
 
   // Auto-select default accounts if not editing and accounts are available
@@ -92,6 +123,13 @@ export function GoalForm({
       setFormData((prev) => ({ ...prev, monthlyContribution: monthlyAmount }));
     }
   }, [formData.budgetType, formData.savingsPercentage, monthlyIncome]);
+
+  const projectedCompletionDate = getProjectedCompletionDate(
+    formData.startDate,
+    formData.currentAmount,
+    formData.targetAmount,
+    formData.monthlyContribution
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,6 +191,26 @@ export function GoalForm({
             }
             required
           />
+        </div>
+
+        <div>
+          <label className="label-text" htmlFor="goal-start-date">
+            Vanaf wanneer wil je beginnen met sparen?
+          </label>
+          <input
+            id="goal-start-date"
+            type="date"
+            value={formData.startDate}
+            onChange={(e) =>
+              setFormData({ ...formData, startDate: e.target.value })
+            }
+            className="input input-bordered w-full mt-1"
+            required
+          />
+          <p className="text-sm text-base-content/60 mt-1">
+            De planning neemt de eerste maandelijkse bijdrage mee vanaf deze
+            maand.
+          </p>
         </div>
 
         {/* Emergency Fund: Ask for months instead of amount */}
@@ -243,11 +301,9 @@ export function GoalForm({
               />
               {formData.targetAmount > 0 && (
                 <p className="text-sm text-base-content/60 mt-1">
-                  Doel bereikt in{" "}
-                  {Math.ceil(
-                    formData.targetAmount / formData.monthlyContribution
-                  )}{" "}
-                  maanden
+                  {projectedCompletionDate
+                    ? `Verwacht bereikt in ${projectedCompletionDate}`
+                    : "Vul een maandelijkse bijdrage in voor een inschatting."}
                 </p>
               )}
             </div>
@@ -291,16 +347,11 @@ export function GoalForm({
             />
             <p className="text-sm text-base-content/60 mt-1">
               {formData.targetAmount > 0 &&
-                formData.monthlyContribution > 0 && (
-                  <>
-                    Doel bereikt in{" "}
-                    {Math.ceil(
-                      (formData.targetAmount - formData.currentAmount) /
-                        formData.monthlyContribution
-                    )}{" "}
-                    maanden
-                  </>
-                )}
+              formData.monthlyContribution > 0 && (
+                projectedCompletionDate
+                  ? `Verwacht bereikt in ${projectedCompletionDate}`
+                  : null
+              )}
             </p>
           </div>
         )}

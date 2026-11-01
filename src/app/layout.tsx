@@ -47,7 +47,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${poppins.variable} antialiased bg-base-100`}>
+      <body className={`${poppins.variable} antialiased bg-base-100`} suppressHydrationWarning>
         <ThemeProvider>
           <ToastProvider>
             <div className="flex min-h-screen">

@@ -1,5 +1,5 @@
-import { Account } from "@/types/finance";
 import Select from "@/components/ui/Select";
+import type { Account } from "@/types/finance";
 
 interface AccountFieldProps {
   value: string;
@@ -14,9 +14,9 @@ export default function AccountField({
 }: AccountFieldProps) {
   return (
     <div>
-      <label className="label">
+      <div className="label">
         <span className="label-text">Account</span>
-      </label>
+      </div>
       <Select
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -27,9 +27,17 @@ export default function AccountField({
         {accounts.map((acc) => (
           <option key={acc.id} value={acc.id}>
             {acc.name}
+            {acc.type === "stocks" &&
+              ` (${acc.expectedAnnualReturn ?? 0}% verwacht rendement)`}
           </option>
         ))}
       </Select>
+      {accounts.find((account) => account.id === value)?.type === "stocks" && (
+        <p className="mt-1 text-xs text-base-content/70">
+          Het rendement staat ingesteld op de beleggingsrekening en wordt niet
+          per transactie toegepast.
+        </p>
+      )}
     </div>
   );
 }

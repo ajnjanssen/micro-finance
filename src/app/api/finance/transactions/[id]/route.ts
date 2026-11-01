@@ -4,10 +4,10 @@ import path from "path";
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const transactionId = params.id;
+    const { id: transactionId } = await context.params;
     const updates = await request.json();
 
     const dataPath = path.join(process.cwd(), "data", "financial-data.json");

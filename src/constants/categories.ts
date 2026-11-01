@@ -42,6 +42,7 @@ export const FREQUENCY_TO_MONTHLY = {
   yearly: 1 / 12,
   weekly: 52 / 12,
   biweekly: 26 / 12,
+  daily: 365 / 12,
 } as const;
 
 export type Frequency = keyof typeof FREQUENCY_TO_MONTHLY;
@@ -58,9 +59,9 @@ export const DUTCH_TO_ENGLISH_CATEGORIES: Record<string, BudgetCategory> = {
   belasting: BUDGET_CATEGORIES.HOUSING,
   onbekend: BUDGET_CATEGORIES.SHOPPING,
   klarna: BUDGET_CATEGORIES.SHOPPING,
-  sparen: BUDGET_CATEGORIES.VACATION,
-  saving: BUDGET_CATEGORIES.VACATION,
-  savings: BUDGET_CATEGORIES.VACATION,
+  sparen: BUDGET_CATEGORIES.SAVINGS,
+  saving: BUDGET_CATEGORIES.SAVINGS,
+  savings: BUDGET_CATEGORIES.SAVINGS,
   "health insurance": BUDGET_CATEGORIES.INSURANCE,
   healthinsurance: BUDGET_CATEGORIES.INSURANCE,
   gezondheid: BUDGET_CATEGORIES.INSURANCE,

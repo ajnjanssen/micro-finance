@@ -7,6 +7,10 @@
     caramellatte, abyss, silk;
 }
 
+.form-control{
+  @apply grid grid-cols-2 gap-2;
+}
+
 body {
   font-family: poppins, sans-serif;
 }
