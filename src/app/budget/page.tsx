@@ -1,24 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import ConfigurationSection from "@/app/settings/components/ConfigurationSection";
 import Budget503020 from "@/components/Budget503020";
 import BudgetPlanner from "@/components/BudgetPlanner";
-import { FinancialData } from "@/types/finance";
-import Link from "next/link";
-import ConfigurationSection from "@/app/settings/components/ConfigurationSection";
+import type { FinancialData } from "@/types/finance";
 
 export default function BudgetPage() {
   const [financialData, setFinancialData] = useState<FinancialData | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
   const [showConfiguration, setShowConfiguration] = useState(false);
 
-  useEffect(() => {
-    loadFinancialData();
-  }, []);
-
-  const loadFinancialData = async () => {
+  const loadFinancialData = useCallback(async () => {
     try {
       const response = await fetch("/api/finance");
       const data = await response.json();
@@ -28,7 +23,11 @@ export default function BudgetPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadFinancialData();
+  }, [loadFinancialData]);
 
   if (loading) {
     return (
@@ -53,11 +52,14 @@ export default function BudgetPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold text-base-content">Budget</h1>
+      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-6">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-bold text-base-content sm:text-3xl">
+            Budget
+          </h1>
           <button
-            className="btn btn-primary btn-sm"
+            type="button"
+            className="btn btn-primary btn-sm w-full sm:w-auto"
             onClick={() => setShowConfiguration(!showConfiguration)}
           >
             {showConfiguration ? "Verberg" : "⚙️ Configureer"} Budget
@@ -72,7 +74,7 @@ export default function BudgetPage() {
               </div>
             </div>
           )}
-          
+
           <Budget503020 />
           <BudgetPlanner />
         </div>

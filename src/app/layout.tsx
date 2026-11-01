@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import Navigation from "@/components/Navigation";
-import { ToastProvider } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 
 // ignore error for css import
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -47,12 +47,17 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${poppins.variable} antialiased bg-base-100`} suppressHydrationWarning>
+      <body
+        className={`${poppins.variable} antialiased bg-base-100`}
+        suppressHydrationWarning
+      >
         <ThemeProvider>
           <ToastProvider>
-            <div className="flex min-h-screen">
+            <div className="flex min-h-screen flex-col lg:flex-row">
               <Navigation />
-              <main className="flex-1 overflow-x-hidden">{children}</main>
+              <main className="min-w-0 flex-1 overflow-x-hidden">
+                {children}
+              </main>
             </div>
           </ToastProvider>
         </ThemeProvider>

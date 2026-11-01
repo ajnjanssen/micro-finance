@@ -1,18 +1,20 @@
 "use client";
 
+import TransactionList from "@/components/TransactionList";
+import TransactionFormCard from "@/components/transactions/TransactionFormCard";
+import ErrorState from "@/components/ui/ErrorState";
+import LoadingState from "@/components/ui/LoadingState";
+import PageHeader from "@/components/ui/PageHeader";
 import { useFinancialData } from "@/hooks/useFinancialData";
 import { useTransactionActions } from "@/hooks/useTransactionActions";
 import { useTransactionForm } from "@/hooks/useTransactionForm";
-import TransactionList from "@/components/TransactionList";
-import TransactionFormCard from "@/components/transactions/TransactionFormCard";
-import PageHeader from "@/components/ui/PageHeader";
-import LoadingState from "@/components/ui/LoadingState";
-import ErrorState from "@/components/ui/ErrorState";
 
 export default function TransactionsPage() {
   const { financialData, loading, reload } = useFinancialData();
-  const { handleAdd, handleUpdate, handleDelete, handleComplete } = useTransactionActions(reload);
-  const { showForm, editingTransaction, openNew, openEdit, close } = useTransactionForm();
+  const { handleAdd, handleUpdate, handleDelete, handleComplete } =
+    useTransactionActions(reload);
+  const { showForm, editingTransaction, openNew, openEdit, close } =
+    useTransactionForm();
 
   const onSubmitTransaction = async (transaction: any) => {
     let success = false;
@@ -25,12 +27,17 @@ export default function TransactionsPage() {
   };
 
   if (loading) return <LoadingState />;
-  if (!financialData) return <ErrorState message="Kan financiële data niet laden" />;
+  if (!financialData)
+    return <ErrorState message="Kan financiële data niet laden" />;
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <PageHeader title="Transacties" buttonLabel="+ Nieuwe Transactie" onButtonClick={openNew} />
+      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-6">
+        <PageHeader
+          title="Transacties"
+          buttonLabel="+ Nieuwe Transactie"
+          onButtonClick={openNew}
+        />
 
         {showForm && (
           <TransactionFormCard

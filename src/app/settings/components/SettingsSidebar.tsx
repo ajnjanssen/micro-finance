@@ -21,88 +21,52 @@ export function SettingsSidebar({
   transactionsCount,
   categoriesCount,
 }: SettingsSidebarProps) {
+  const tabs: { id: TabType; label: string; icon: string; count?: number }[] = [
+    { id: "accounts", label: "Rekeningen", icon: "🏦", count: accountsCount },
+    {
+      id: "transactions",
+      label: "Transacties",
+      icon: "💰",
+      count: transactionsCount,
+    },
+    {
+      id: "categories",
+      label: "Categorieën",
+      icon: "🏷️",
+      count: categoriesCount,
+    },
+    { id: "logs", label: "Activiteiten", icon: "📋" },
+    { id: "configuration", label: "Inkomsten & uitgaven", icon: "⚙️" },
+    { id: "appearance", label: "Thema", icon: "🌈" },
+  ];
+
   return (
-    <aside className="col-span-12 md:col-span-3">
-      <nav className="card bg-base-100 shadow-sm fixed w-fit">
-        <ul className="menu w-full">
-          <li>
-            <details open>
-              <summary className="group">
-                <span className="text-lg">📊</span>
-                Gegevensbeheer
-              </summary>
-              <ul>
-                <li>
-                  <a
-                    className={activeTab === "accounts" ? "active" : ""}
-                    onClick={() => onTabChange("accounts")}
-                  >
-                    🏦 Rekeningen ({accountsCount})
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className={activeTab === "transactions" ? "active" : ""}
-                    onClick={() => onTabChange("transactions")}
-                  >
-                    💰 Transacties ({transactionsCount})
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className={activeTab === "categories" ? "active" : ""}
-                    onClick={() => onTabChange("categories")}
-                  >
-                    🏷️ Categorieën ({categoriesCount})
-                  </a>
-                </li>
-                <li>
-                  <a
-                    className={activeTab === "logs" ? "active" : ""}
-                    onClick={() => onTabChange("logs")}
-                  >
-                    📋 Activity Log
-                  </a>
-                </li>
-              </ul>
-            </details>
-          </li>
-          <li>
-            <details open>
-              <summary className="group">
-                <span className="text-lg">⚙️</span>
-                Configuratie
-              </summary>
-              <ul>
-                <li>
-                  <a
-                    className={activeTab === "configuration" ? "active" : ""}
-                    onClick={() => onTabChange("configuration")}
-                  >
-                    💰 Inkomsten & Uitgaven
-                  </a>
-                </li>
-              </ul>
-            </details>
-          </li>
-          <li>
-            <details open>
-              <summary className="group">
-                <span className="text-lg">🎨</span>
-                Weergave
-              </summary>
-              <ul>
-                <li>
-                  <a
-                    className={activeTab === "appearance" ? "active" : ""}
-                    onClick={() => onTabChange("appearance")}
-                  >
-                    🌈 Thema & Typografie
-                  </a>
-                </li>
-              </ul>
-            </details>
-          </li>
+    <aside className="col-span-12 min-w-0 md:col-span-3">
+      <nav
+        aria-label="Instellingen"
+        className="card bg-base-100 shadow-sm md:sticky md:top-4"
+      >
+        <ul className="menu menu-horizontal w-full flex-nowrap gap-1 overflow-x-auto p-2 md:menu-vertical md:overflow-visible">
+          {tabs.map((tab) => (
+            <li key={tab.id} className="shrink-0 md:w-full">
+              <button
+                type="button"
+                aria-current={activeTab === tab.id ? "page" : undefined}
+                className={
+                  activeTab === tab.id
+                    ? "active whitespace-nowrap"
+                    : "whitespace-nowrap"
+                }
+                onClick={() => onTabChange(tab.id)}
+              >
+                <span aria-hidden="true">{tab.icon}</span>
+                {tab.label}
+                {tab.count !== undefined && (
+                  <span className="text-xs opacity-60">{tab.count}</span>
+                )}
+              </button>
+            </li>
+          ))}
         </ul>
       </nav>
     </aside>

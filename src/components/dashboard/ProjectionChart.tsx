@@ -1,6 +1,6 @@
 import { LineChart } from "@mui/x-charts/LineChart";
-import type { BalanceProjection, Account } from "@/types/finance";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Account, BalanceProjection } from "@/types/finance";
 import { MonthlyBreakdown } from "./MonthlyBreakdown";
 
 interface ProjectionChartProps {
@@ -210,9 +210,9 @@ export function ProjectionChart({
   };
 
   return (
-    <div className="card bg-base-200 shadow p-4">
-      <h3 className="text-xl font-bold mb-4">Balans Projectie</h3>
-      <div style={{ width: "100%", height: "400px" }}>
+    <div className="card bg-base-200 p-3 shadow sm:p-4">
+      <h3 className="mb-4 text-lg font-bold sm:text-xl">Balans Projectie</h3>
+      <div className="h-[280px] w-full sm:h-[340px] lg:h-[400px]">
         <LineChart
           xAxis={chartData.xAxis}
           yAxis={chartData.yAxis}

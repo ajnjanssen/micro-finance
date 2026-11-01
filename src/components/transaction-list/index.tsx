@@ -1,11 +1,11 @@
 "use client";
 
-import type { Transaction, Account, Category } from "@/types/finance";
+import type { Account, Category, Transaction } from "@/types/finance";
+import { formatCurrency } from "@/utils/formatters";
+import { FilterBar } from "./FilterBar";
 import { useTransactionFilters } from "./hooks/useTransactionFilters";
 import { useTransactionHelpers } from "./hooks/useTransactionHelpers";
-import { FilterBar } from "./FilterBar";
 import { TransactionRow } from "./TransactionRow";
-import { formatCurrency } from "@/utils/formatters";
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -56,7 +56,7 @@ export default function TransactionList({
       }
       return acc;
     },
-    { income: 0, expenses: 0, net: 0 }
+    { income: 0, expenses: 0, net: 0 },
   );
 
   if (transactions.length === 0) {
@@ -80,7 +80,7 @@ export default function TransactionList({
       />
 
       <div className="overflow-x-auto">
-        <table className="table table-zebra">
+        <table className="table table-zebra min-w-[680px]">
           <thead>
             <tr>
               <th>Datum</th>

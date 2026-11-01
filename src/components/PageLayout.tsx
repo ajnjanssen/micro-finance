@@ -14,7 +14,7 @@ export function PageLayout({ children, maxWidth = "full" }: PageLayoutProps) {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 w-full">
+    <div className="flex w-full flex-col gap-4 p-3 sm:gap-6 sm:p-4 lg:p-6">
       <div
         className={`${maxWidthClasses[maxWidth]} w-full mx-auto flex flex-col gap-6`}
       >
@@ -32,12 +32,14 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, action }: PageHeaderProps) {
   return (
-    <div className="flex justify-between items-start gap-4">
+    <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-start sm:gap-4">
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold text-base-content">{title}</h1>
+        <h1 className="text-2xl font-bold text-base-content sm:text-3xl">
+          {title}
+        </h1>
         {subtitle && <p className="text-base-content/70">{subtitle}</p>}
       </div>
-      {action && <div className="flex-shrink-0">{action}</div>}
+      {action && <div className="w-full flex-shrink-0 sm:w-auto">{action}</div>}
     </div>
   );
 }

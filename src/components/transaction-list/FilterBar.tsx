@@ -1,5 +1,5 @@
-import type { Category } from "@/types/finance";
 import Select from "@/components/ui/Select";
+import type { Category } from "@/types/finance";
 
 interface FilterBarProps {
   filter: string;
@@ -21,7 +21,7 @@ export function FilterBar({
   categories,
 }: FilterBarProps) {
   return (
-    <div className="flex gap-2 mb-4">
+    <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
       <Select
         name="transactionFilter"
         value={filter}

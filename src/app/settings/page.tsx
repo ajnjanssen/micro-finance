@@ -1,17 +1,17 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { useSettingsData } from "./hooks/useSettingsData";
+import { Suspense, useEffect, useState } from "react";
+import { PageLayout } from "@/components/PageLayout";
+import AccountsSection from "./components/AccountsSection";
+import ActivityLogSection from "./components/ActivityLogSection";
+import AppearanceSection from "./components/AppearanceSection";
+import CategoriesSection from "./components/CategoriesSection";
+import ConfigurationSection from "./components/ConfigurationSection";
 import { SettingsHeader } from "./components/SettingsHeader";
 import { SettingsSidebar } from "./components/SettingsSidebar";
-import AccountsSection from "./components/AccountsSection";
 import TransactionsSection from "./components/TransactionsSection";
-import ConfigurationSection from "./components/ConfigurationSection";
-import CategoriesSection from "./components/CategoriesSection";
-import AppearanceSection from "./components/AppearanceSection";
-import ActivityLogSection from "./components/ActivityLogSection";
-import { PageLayout } from "@/components/PageLayout";
+import { useSettingsData } from "./hooks/useSettingsData";
 
 type TabType =
   | "accounts"
@@ -66,7 +66,7 @@ function SettingsPageContent() {
     <PageLayout maxWidth="xl">
       <SettingsHeader onReload={reload} />
 
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-12 md:gap-6">
         <SettingsSidebar
           activeTab={activeTab}
           onTabChange={setActiveTab}

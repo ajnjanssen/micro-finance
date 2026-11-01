@@ -1,15 +1,15 @@
 "use client";
 
-import { useSavingsGoals } from "@/hooks/useSavingsGoals";
-import { formatCurrency, formatPercentage } from "@/utils/formatters";
-import LoadingState from "@/components/ui/LoadingState";
-import PageHeader from "@/components/ui/PageHeader";
-import { SavingsTransactionsModal } from "@/components/savings-goals/SavingsTransactionsModal";
-import { GoalForm } from "@/components/savings-goals/GoalForm";
-import { differenceInMonths, addMonths, format } from "date-fns";
+import { addMonths, differenceInMonths, format } from "date-fns";
 import { nl } from "date-fns/locale";
 import { useState } from "react";
+import { GoalForm } from "@/components/savings-goals/GoalForm";
+import { SavingsTransactionsModal } from "@/components/savings-goals/SavingsTransactionsModal";
+import LoadingState from "@/components/ui/LoadingState";
+import PageHeader from "@/components/ui/PageHeader";
+import { useSavingsGoals } from "@/hooks/useSavingsGoals";
 import type { SavingsGoal } from "@/types/savings-goals";
+import { formatCurrency, formatPercentage } from "@/utils/formatters";
 
 export default function SpaardoelenPage() {
   const {
@@ -29,7 +29,7 @@ export default function SpaardoelenPage() {
   const handleMarkAsSpent = async (goalId: string) => {
     if (
       !confirm(
-        "Weet je zeker dat je dit doel als uitgegeven wilt markeren? Dit zal een uitgave transactie aanmaken."
+        "Weet je zeker dat je dit doel als uitgegeven wilt markeren? Dit zal een uitgave transactie aanmaken.",
       )
     ) {
       return;
@@ -77,7 +77,7 @@ export default function SpaardoelenPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-6">
         <PageHeader
           title="Spaardoelen"
           buttonLabel="+ Nieuw Spaardoel"
@@ -153,7 +153,7 @@ export default function SpaardoelenPage() {
               const deadlineDate = new Date(goal.deadline);
               const monthsUntilDeadline = differenceInMonths(
                 deadlineDate,
-                new Date()
+                new Date(),
               );
 
               if (monthsUntilDeadline > 0) {
