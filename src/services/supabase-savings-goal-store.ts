@@ -124,6 +124,26 @@ export async function insertUserSavingsGoal(
   return mapGoal(data as GoalRow);
 }
 
+export async function upsertUserSavingsGoals(
+  goals: SavingsGoal[],
+): Promise<void> {
+  if (goals.length === 0) return;
+
+  const supabase = await createSupabaseServerClient();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  throwOnError(userError);
+  if (!userData.user) throw new Error("Authentication required.");
+
+  const { error } = await supabase.from("savings_goals").upsert(
+    goals.map((goal) => ({
+      user_id: userData.user.id,
+      ...toGoalRow(goal),
+    })),
+    { onConflict: "user_id,id" },
+  );
+  throwOnError(error);
+}
+
 export async function updateUserSavingsGoal(
   id: string,
   updates: Partial<SavingsGoal>,

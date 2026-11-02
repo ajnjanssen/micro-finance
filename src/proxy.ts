@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
-import { getSupabaseEnv } from "./src/lib/supabase/env";
+import { getSupabaseEnv } from "@/lib/supabase/env";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { url, key } = getSupabaseEnv();
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {

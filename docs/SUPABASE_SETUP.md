@@ -61,7 +61,26 @@ secret/service-role key in a `NEXT_PUBLIC_*` variable or browser code.
 Apply every SQL migration in `supabase/migrations` in timestamp order using the
 Supabase SQL Editor or Supabase CLI. They enable Row Level Security and policies
 that restrict each table row to the authenticated owner. New users start with
-empty financial tables; this app does not copy local JSON files to Supabase.
+empty financial tables; local JSON files are not copied automatically.
+
+To migrate an existing local administration, sign in as the intended user and
+open **Settings → Importeer JSON**. Select the JSON files from the local `data`
+folder together in one operation: `financial-data.json`,
+`financial-config.json`, `savings-goals.json`, `app-settings.json`, and
+`activity-log.json`. The importer merges records into the signed-in user's
+Supabase data: matching IDs are updated and unrelated cloud records are kept.
+Review the confirmation before uploading, and do not select files for another
+user. Legacy accounts without a per-account starting balance are assigned a
+zero starting balance. Their tracking start date is taken from the imported
+financial configuration; if that date is empty or invalid, the date of the
+configuration's last update is used, falling back to today. Missing projection
+settings in older configuration files receive the application's defaults.
+Empty optional date fields are treated as unset. Review these normalizations in
+the confirmation before uploading. If an import is interrupted, select the same
+files and retry; importing the same IDs is safe to repeat.
+
+The **Export** button downloads a complete JSON backup that can later be
+restored using the same import control.
 
 Official guides: [Google sign-in](https://supabase.com/docs/guides/auth/social-sign-in/auth-google)
 and [Microsoft/Azure sign-in](https://supabase.com/docs/guides/auth/social-sign-in/auth-azure).
@@ -70,8 +89,9 @@ and [Microsoft/Azure sign-in](https://supabase.com/docs/guides/auth/social-sign-
 
 Runtime financial API and service reads/writes now use the authenticated user's
 Supabase records. Each new user starts with an empty administration; existing
-local JSON data is not imported. Keep `SUPABASE_DATA_BACKEND_ENABLED` unset or
-set to `false` until all SQL migrations have been applied and the production
+local JSON data must be imported manually using the Settings importer above.
+Keep `SUPABASE_DATA_BACKEND_ENABLED` unset or set to `false` until all SQL
+migrations have been applied and the production
 build and two-user isolation checks have passed. In production this fails
 closed: authenticated users cannot open the app or call its APIs while the
 setting is disabled. Set it to `true` only after those checks.

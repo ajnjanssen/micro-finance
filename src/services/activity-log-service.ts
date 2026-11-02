@@ -60,6 +60,31 @@ export async function addActivityLog(
   throwOnError(error);
 }
 
+export async function upsertActivityLogs(logs: ActivityLog[]): Promise<void> {
+  if (logs.length === 0) return;
+
+  const supabase = await createSupabaseServerClient();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  throwOnError(authError);
+  if (!authData.user) throw new Error("Authentication required.");
+
+  const { error } = await supabase.from("activity_logs").upsert(
+    logs.map((log) => ({
+      user_id: authData.user.id,
+      id: log.id,
+      logged_at: log.timestamp,
+      action: log.action,
+      entity: log.entity,
+      entity_id: log.entityId ?? null,
+      entity_name: log.entityName ?? null,
+      details: log.details ?? null,
+      metadata: log.metadata ?? null,
+    })),
+    { onConflict: "user_id,id" },
+  );
+  throwOnError(error);
+}
+
 export async function clearActivityLogs(): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase

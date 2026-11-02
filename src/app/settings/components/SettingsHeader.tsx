@@ -17,14 +17,19 @@ export function SettingsHeader({ onReload }: SettingsHeaderProps) {
           </div>
           <div className="flex items-center justify-between w-full md:w-auto">
             <div className="flex gap-2">
-              <button onClick={handleExport} className="btn btn-outline btn-sm">
+              <button
+                type="button"
+                onClick={handleExport}
+                className="btn btn-outline btn-sm"
+              >
                 📤 Export
               </button>
               <label className="btn btn-outline btn-sm">
-                📥 Import
+                📥 Importeer JSON
                 <input
                   type="file"
-                  accept=".json"
+                  accept=".json,application/json"
+                  multiple
                   onChange={(e) => handleImport(e, onReload)}
                   className="hidden"
                 />

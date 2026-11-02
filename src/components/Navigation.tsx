@@ -188,7 +188,7 @@ export default function Navigation() {
         </button>
       </header>
 
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-base-300 bg-base-200 lg:flex">
+      <aside className="fixed left-0 top-0 z-30 hidden h-screen w-64 shrink-0 flex-col border-r border-base-300 bg-base-200 lg:flex">
         <div className="border-b border-base-300 p-6">
           <h1 className="text-xl font-bold text-base-content">Micro Finance</h1>
         </div>
@@ -202,6 +202,11 @@ export default function Navigation() {
           </div>
         </div>
       </aside>
+
+      <div
+        aria-hidden="true"
+        className="hidden h-screen w-64 shrink-0 lg:block"
+      />
 
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">

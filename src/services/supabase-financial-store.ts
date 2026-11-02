@@ -309,6 +309,48 @@ export async function insertUserTransactions(
   await touchFinancialProfile();
 }
 
+export async function upsertUserFinancialData(
+  data: Pick<FinancialData, "accounts" | "categories" | "transactions">,
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const userId = await requireUserId(supabase);
+
+  if (data.accounts.length > 0) {
+    const { error } = await supabase.from("accounts").upsert(
+      data.accounts.map((account) => ({
+        user_id: userId,
+        ...toAccountRow(account),
+      })),
+      { onConflict: "user_id,id" },
+    );
+    throwOnError(error);
+  }
+
+  if (data.categories.length > 0) {
+    const { error } = await supabase.from("categories").upsert(
+      data.categories.map((category) => ({
+        user_id: userId,
+        ...toCategoryRow(category),
+      })),
+      { onConflict: "user_id,id" },
+    );
+    throwOnError(error);
+  }
+
+  if (data.transactions.length > 0) {
+    const { error } = await supabase.from("transactions").upsert(
+      data.transactions.map((transaction) => ({
+        user_id: userId,
+        ...toTransactionRow(transaction),
+      })),
+      { onConflict: "user_id,id" },
+    );
+    throwOnError(error);
+  }
+
+  await touchFinancialProfile();
+}
+
 export async function updateUserTransaction(
   id: string,
   updates: Partial<Transaction>,
